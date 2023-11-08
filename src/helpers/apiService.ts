@@ -27,6 +27,8 @@ import {
 import axios, { AxiosResponse } from 'axios';
 import {
   delay,
+  getAtmStrikePrice,
+  getLastThursdayOfCurrentMonth,
   isMarketClosed,
   setSmartSession,
   updateMaxSl,
@@ -293,18 +295,35 @@ const takeOrbTrade = async ({
         symboltoken: scrip.token,
         tradingsymbol: scrip.symbol,
       });
+      const atm = await getAtmStrikePrice({ scrip, ltp: scripData.ltp });
       if (tradeDirection === 'up' && scripData.ltp > price) {
-        await doOrder({
-          tradingsymbol: scrip.symbol,
-          symboltoken: scrip.token,
-          transactionType: TRANSACTION_TYPE_BUY,
+        const getCeScrip = await getOption({
+          scriptName: scrip.name,
+          strikePrice: atm.toString(),
+          optionType: 'CE',
+          expiryDate: getLastThursdayOfCurrentMonth(),
         });
+        if (getCeScrip.length === 1) {
+          await doOrder({
+            tradingsymbol: get(getCeScrip[0], 'symbol', '') || '',
+            symboltoken: get(getCeScrip[0], 'token', '') || '',
+            transactionType: TRANSACTION_TYPE_SELL,
+          });
+        }
       } else if (tradeDirection === 'down' && scripData.ltp < price) {
-        await doOrder({
-          tradingsymbol: scrip.symbol,
-          symboltoken: scrip.token,
-          transactionType: TRANSACTION_TYPE_SELL,
+        const getPeScrip = await getOption({
+          scriptName: scrip.name,
+          strikePrice: atm.toString(),
+          optionType: 'PE',
+          expiryDate: getLastThursdayOfCurrentMonth(),
         });
+        if (getPeScrip.length === 1) {
+          await doOrder({
+            tradingsymbol: get(getPeScrip[0], 'symbol', '') || '',
+            symboltoken: get(getPeScrip[0], 'token', '') || '',
+            transactionType: TRANSACTION_TYPE_SELL,
+          });
+        }
       }
     }
   }
@@ -365,4 +384,3 @@ export const runOrb = async ({
   await checkSL({ maxSl, trailSl, tradeDirection, scrip });
   return { mtm };
 };
-
