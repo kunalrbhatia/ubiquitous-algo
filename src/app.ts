@@ -23,7 +23,7 @@ server.listen(process.env.PORT, () => {
   console.log(`${ALGO}: Server running on PORT number ${process.env.PORT}`);
 });
 app.get('/', (req: Request, res: Response) => {
-  res.json({ status: 'ok', lastUpdated: '2023-08-18, 00:33:00' });
+  res.json({ status: 'ok', lastUpdated: '2023-11-11, 03:53:00' });
 });
 process.on('uncaughtException', function (err) {
   console.log(err);

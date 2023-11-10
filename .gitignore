@@ -1,6 +1,7 @@
 /node_modules
 /smart_api_client
 /target
+/dist
 package-lock.json
 .env
 *.json
