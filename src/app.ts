@@ -69,16 +69,16 @@ app.post('/orb', async (req: Request, res: Response) => {
     const maxSl: number = req.body.max_sl || -2000;
     const trailSl: number = req.body.trail_sl || 500;
     const tradeDirection: 'up' | 'down' = req.body.trade_direction;
+    console.log(`${ALGO}calling isTradeAllowed function...`);
     const canTakeTrade = await isTradeAllowed();
-    if (canTakeTrade) {
-      response = await runOrb({
-        scriptName,
-        price,
-        maxSl,
-        tradeDirection,
-        trailSl,
-      });
-    }
+    //if (canTakeTrade)
+    response = await runOrb({
+      scriptName,
+      price,
+      maxSl,
+      tradeDirection,
+      trailSl,
+    });
     console.log(`\n${ALGO}: ${response}`);
     res.send(response);
   } catch (err) {

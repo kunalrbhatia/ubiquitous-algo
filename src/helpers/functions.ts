@@ -1,6 +1,7 @@
 import {
   Credentails,
   ISmartApiData,
+  ScripResponse,
   TimeComparisonType,
   delayType,
   reqType,
@@ -153,4 +154,17 @@ export const getAtmStrikePrice = async ({
     console.error(`${ALGO}: Error - ${error}`);
     throw error; // This will immediately stop further execution
   }
+};
+export const getLotSize = ({
+  scrip,
+}: {
+  scrip: scripMasterResponse | ScripResponse;
+}) => {
+  let lotsize: string | number = get(scrip, 'lotsize');
+  if (typeof lotsize === 'string' && !isEmpty(lotsize)) {
+    lotsize = parseInt(lotsize, 10);
+  } else {
+    lotsize = 0;
+  }
+  return lotsize;
 };
