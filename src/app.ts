@@ -14,19 +14,21 @@ import { ALGO } from './helpers/constants';
 import { isTradeAllowed, setCred } from './helpers/functions';
 import dotenv from 'dotenv';
 import { Socket } from 'net';
+import { log } from 'console';
+
 const app: Application = express();
 app.use(bodyParser.json());
 app.use(cors());
 dotenv.config();
 const server: Server = createServer(app);
 server.listen(process.env.PORT, () => {
-  console.log(`${ALGO}: Server running on PORT number ${process.env.PORT}`);
+  log(`${ALGO}: Server running on PORT number ${process.env.PORT}`);
 });
 app.get('/', (req: Request, res: Response) => {
   res.json({ status: 'ok', lastUpdated: '2023-11-11, 03:53:00' });
 });
 process.on('uncaughtException', function (err) {
-  console.log(err);
+  log(err);
 });
 let connections: Socket[] = [];
 server.on('connection', (connection) => {
@@ -38,9 +40,9 @@ server.on('connection', (connection) => {
 });
 app.get('/kill', (req, res) => {
   setTimeout(() => {
-    console.log('Received kill signal, shutting down gracefully');
+    log('Received kill signal, shutting down gracefully');
     server.close(() => {
-      console.log('Closed out remaining connections');
+      log('Closed out remaining connections');
       process.exit(0);
     });
     setTimeout(() => {
@@ -56,12 +58,12 @@ app.get('/kill', (req, res) => {
 });
 
 app.post('/orb', async (req: Request, res: Response) => {
-  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^ORB STARTS^^^^^^^^^^^^^^`);
+  log(`\n${ALGO}: ^^^^^^^^^^^^^^^^ORB STARTS^^^^^^^^^^^^^^`);
   try {
     const istTz = new Date().toLocaleString('default', {
       timeZone: 'Asia/Kolkata',
     });
-    console.log(`${ALGO}: time, ${istTz}`);
+    log(`${ALGO}: time, ${istTz}`);
     setCred(req);
     let response;
     const scriptName: string = req.body.script_name;
@@ -69,7 +71,7 @@ app.post('/orb', async (req: Request, res: Response) => {
     const maxSl: number = req.body.max_sl || -2000;
     const trailSl: number = req.body.trail_sl || 500;
     const tradeDirection: 'up' | 'down' = req.body.trade_direction;
-    console.log(`${ALGO}calling isTradeAllowed function...`);
+    log(`${ALGO}: calling isTradeAllowed function...`);
     const canTakeTrade = await isTradeAllowed();
     //if (canTakeTrade)
     response = await runOrb({
@@ -79,13 +81,13 @@ app.post('/orb', async (req: Request, res: Response) => {
       tradeDirection,
       trailSl,
     });
-    console.log(`\n${ALGO}: ${response}`);
+    log(`\n${ALGO}: mtm object `, response);
     res.send(response);
   } catch (err) {
-    console.log(err);
+    log(err);
     res.send({ response: err });
   }
-  console.log(`\n${ALGO}: ^^^^^^^^^^^^^^^^ORB ENDS^^^^^^^^^^^^^^`);
+  log(`\n${ALGO}: ^^^^^^^^^^^^^^^^ORB ENDS^^^^^^^^^^^^^^`);
 });
 app.use((req: Request, res: Response, next: NextFunction) => {
   next(new createHttpError.NotFound());

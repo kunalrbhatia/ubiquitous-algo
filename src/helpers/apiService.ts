@@ -147,7 +147,7 @@ export const doOrder = async ({
     producttype: productType,
     duration: 'DAY',
   });
-  console.log(`${ALGO} doOrder data `, data);
+  console.log(`${ALGO}: doOrder data `, data);
   const cred = DataStore.getInstance().getPostData();
   let config = {
     method: 'post',
@@ -201,12 +201,12 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
 export const getStock = async ({ scriptName }: { scriptName: string }) => {
   let scripMaster: scripMasterResponse[] = await fetchData();
   console.log(
-    `${ALGO}:scriptName: ${scriptName}, is scrip master an array: ${isArray(
+    `${ALGO}: scriptName: ${scriptName}, is scrip master an array: ${isArray(
       scripMaster
     )}, its length is: ${scripMaster.length}`
   );
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
-    console.log(`${ALGO} all check cleared getScrip call`);
+    console.log(`${ALGO}: all check cleared getScrip call`);
     let filteredScrip = scripMaster.filter((scrip) => {
       const _scripName: string = get(scrip, 'symbol', '') || '';
       return (
@@ -236,7 +236,7 @@ export const getOption = async ({
     )}, its length is: ${scripMaster.length}`
   );
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
-    console.log(`${ALGO} all check cleared getScrip call`);
+    console.log(`${ALGO}: all check cleared getScrip call`);
     let scrips = scripMaster.filter((scrip) => {
       const _scripName: string = get(scrip, 'name', '') || '';
       const _symbol: string = get(scrip, 'symbol', '') || '';
@@ -285,28 +285,28 @@ const takeOrbTrade = async ({
   tradeDirection: 'up' | 'down';
   price: number;
 }) => {
-  console.log(`${ALGO} fetching open positions ...`);
+  console.log(`${ALGO}: fetching open positions ...`);
   let positionsResponse = await getPositions();
   let positionsData = get(positionsResponse, 'data', []) ?? [];
   if (Array.isArray(positionsData) && positionsData.length > 0) {
     const position = positionsData.filter((position) => {
       if (get(position, 'name') === scrip.name) return position;
     });
-    console.log(`${ALGO} position: `, position);
+    console.log(`${ALGO}: position: `, position);
     if (position.length === 0) {
-      console.log(`${ALGO} position not found for the selected scrip`);
-      console.log(`${ALGO} fetching current price of the selected scrip...`);
+      console.log(`${ALGO}: position not found for the selected scrip`);
+      console.log(`${ALGO}: fetching current price of the selected scrip...`);
       const scripData = await getLtpData({
         exchange: scrip.exch_seg,
         symboltoken: scrip.token,
         tradingsymbol: scrip.symbol,
       });
       console.log(
-        `${ALGO} current price of the selected scrip is ${scripData.ltp}`
+        `${ALGO}: current price of the selected scrip is ${scripData.ltp}`
       );
-      console.log(`${ALGO} calculating ATM strike price ...`);
+      console.log(`${ALGO}: calculating ATM strike price ...`);
       const atm = await getAtmStrikePrice({ scrip, ltp: scripData.ltp });
-      console.log(`${ALGO} ATM strike price is `, atm);
+      console.log(`${ALGO}: ATM strike price is `, atm);
       if (tradeDirection === 'up' && scripData.ltp > price) {
         console.log(`${ALGO}: fetching pe option ...`);
         const getPeScrip = await getOption({
@@ -356,9 +356,9 @@ const getMtm = async ({ scrip }: { scrip: ScripResponse }) => {
   if (Array.isArray(positionsData) && positionsData.length > 0) {
     const position = positionsData.filter((position) => {
       const tradingSymbol = get(position, 'tradingsymbol');
-      console.log(
-        `${ALGO}: tradingSymbol: ${tradingSymbol} / scrip.symbol: ${scrip.symbol}`
-      );
+      // console.log(
+      //   `${ALGO}: tradingSymbol: ${tradingSymbol} / scrip.symbol: ${scrip.symbol}`
+      // );
       if (tradingSymbol === scrip.symbol) return position;
     });
     mtm = parseInt(get(position, 'unrealised', '0') ?? '0');
@@ -370,15 +370,17 @@ const checkSL = async ({
   trailSl,
   tradeDirection,
   scrip,
+  mtm,
 }: {
   maxSl: number;
   trailSl: number;
   tradeDirection: 'up' | 'down';
   scrip: ScripResponse;
+  mtm: number;
 }) => {
-  const mtm = await getMtm({ scrip });
   const updatedMaxSl = updateMaxSl({ mtm, maxSl, trailSl });
-  if (Math.abs(mtm) > updatedMaxSl) {
+  console.log(`${ALGO}: updatedMaxSl: ${updatedMaxSl}`);
+  if (mtm < 0 && Math.abs(mtm) > updatedMaxSl) {
     if (tradeDirection === 'up') {
       await doOrder({
         tradingsymbol: scrip.symbol,
@@ -409,7 +411,8 @@ export const runOrb = async ({
   const scrip = await getStock({ scriptName });
   console.log(`${ALGO}: fetched scrip: ${scrip.symbol}`);
   await takeOrbTrade({ price, scrip, tradeDirection });
-  const mtm = getMtm({ scrip });
-  // await checkSL({ maxSl, trailSl, tradeDirection, scrip });
+  const mtm = await getMtm({ scrip });
+  console.log(`${ALGO}: mtm ${mtm}`);
+  await checkSL({ mtm, maxSl, trailSl, tradeDirection, scrip });
   return { mtm };
 };
