@@ -14,7 +14,7 @@ import SmartSession from '../store/smartSession';
 import moment from 'moment-timezone';
 import { get, isEmpty } from 'lodash';
 import { generateSmartSession, getOption } from './apiService';
-import { ALGO } from './constants';
+import { ALGO, DELAY } from './constants';
 export const setCred = (req: Request | reqType) => {
   const creds: Credentails = {
     APIKEY: req.body.api_key,
@@ -69,6 +69,7 @@ export const isTradeAllowed = async () => {
   });
   let isSmartAPIWorking = false;
   try {
+    await delay({ milliSeconds: DELAY });
     const smartData = await generateSmartSession();
     isSmartAPIWorking = !isEmpty(smartData);
     if (isSmartAPIWorking) {
@@ -133,6 +134,7 @@ export const getAtmStrikePrice = async ({
   let expiryDate = getLastThursdayOfCurrentMonth();
   console.log(`${ALGO}: expiryDate is ${expiryDate}`);
   try {
+    await delay({ milliSeconds: DELAY });
     const optionChain = await getOption({
       scriptName: scrip.name,
       expiryDate: expiryDate,
