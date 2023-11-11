@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orb-algo-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: express-app
+  template:
+    metadata:
+      labels:
+        app: express-app
+    spec:
+      containers:
+        - name: express-app
+          image: 'us-central1-docker.pkg.dev/smart-api-840b7/orb-algo-repo/orb-algo-image:tag1'
+          ports:
+            - containerPort: 8000  # Adjust the port according to your app
+
+
