@@ -1,0 +1,23 @@
+# Build
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: [ 'build', '-t', 'us-central1-docker.pkg.dev/smart-api-840b7/orb-algo-repo/orb-algo-image:tag1', '.' ]
+
+# Push
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 
+           'us-central1-docker.pkg.dev/smart-api-840b7/orb-algo-repo/orb-algo-image:tag1']  
+
+# Entrypoint, timeout and environment variables
+# - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+#   entrypoint: 'gcloud'
+#   timeout: 240s
+#   args: ['compute', 'instances', 
+#            'create-with-container', 'smart-api-vm',
+#            '--container-image', 
+#            'us-central1-docker.pkg.dev/smart-api-840b7/smart-api-docker-repo/smart-api-image:tag1']
+#   env:
+#       - 'CLOUDSDK_COMPUTE_REGION=us-central1'
+#       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'           
+images:
+- 'us-central1-docker.pkg.dev/smart-api-840b7/orb-algo-repo/orb-algo-image:tag1'
