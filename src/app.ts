@@ -9,7 +9,7 @@ import express, {
 } from 'express';
 import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
-import { runOrb } from './helpers/apiService';
+import {  getStocks, runOrb } from './helpers/apiService';
 import { ALGO } from './helpers/constants';
 import { isTradeAllowed, setCred } from './helpers/functions';
 import dotenv from 'dotenv';
@@ -56,7 +56,23 @@ app.get('/kill', (req, res) => {
   }, 1000);
   res.send("Execution of the 'Kill Algo' command has been initiated.");
 });
-
+app.post('/stock', async (req: Request, res: Response) => {
+  log(`\n${ALGO}: ^^^^^^^^^^^^^^^^FIND STOCK STARTS^^^^^^^^^^^^^^`);
+  try {
+    const istTz = new Date().toLocaleString('default', {
+      timeZone: 'Asia/Kolkata',
+    });
+    log(`${ALGO}: time, ${istTz}`);
+    setCred(req);
+    const scriptName: string = String(req.body.script_name).toUpperCase();
+    const script = await getStocks({ scriptName });
+    res.send(script);
+  } catch (err) {
+    log(err);
+    res.send({ response: err });
+  }
+  log(`\n${ALGO}: ^^^^^^^^^^^^^^^^FIND STOCK ENDS^^^^^^^^^^^^^^`);
+});
 app.post('/orb', async (req: Request, res: Response) => {
   log(`\n${ALGO}: ^^^^^^^^^^^^^^^^ORB STARTS^^^^^^^^^^^^^^`);
   try {

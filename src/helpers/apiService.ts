@@ -198,6 +198,33 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
       throw evt;
     });
 };
+export const getStocks = async ({ scriptName }: { scriptName: string }) => {
+  await delay({ milliSeconds: DELAY });
+  let scripMaster: scripMasterResponse[] = await fetchData();
+  console.log(
+    `${ALGO}: scriptName: ${scriptName}, is scrip master an array: ${isArray(
+      scripMaster
+    )}, its length is: ${scripMaster.length}`
+  );
+  if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
+    console.log(`${ALGO}: all check cleared getScrip call`);
+    let filteredScrip = scripMaster.filter((scrip) => {
+      const _scripName: string = get(scrip, 'symbol', '') || '';
+      return (
+        _scripName.includes(scriptName) &&
+        get(scrip, 'exch_seg') === 'NSE' &&
+        _scripName.endsWith('-EQ')
+      );
+    });
+    //console.log('filteredScrip: ', filteredScrip);
+    if (filteredScrip.length >= 1) return filteredScrip;
+    else throw new Error('stock(s) not found');
+  } else {
+    const errorMessage = `${ALGO}: getStock failed`;
+    console.log(errorMessage);
+    throw errorMessage;
+  }
+};
 export const getStock = async ({ scriptName }: { scriptName: string }) => {
   await delay({ milliSeconds: DELAY });
   let scripMaster: scripMasterResponse[] = await fetchData();
