@@ -81,7 +81,7 @@ app.post('/orb', async (req: Request, res: Response) => {
     });
     log(`${ALGO}: time, ${istTz}`);
     setCred(req);
-    let response;
+    let response = { mtm: -1 };
     const scriptName: string = req.body.script_name;
     const price: number = req.body.price;
     const maxSl: number = req.body.max_sl || -2000;
