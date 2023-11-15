@@ -339,6 +339,9 @@ const takeOrbTrade = async ({
       await delay({ milliSeconds: DELAY });
       const atm = await getAtmStrikePrice({ scrip, ltp: scripData.ltp });
       console.log(`${ALGO}: ATM strike price is `, atm);
+      console.log(
+        `${ALGO}: Direction is ${tradeDirection}, ltp is ${scripData.ltp}, user given price is ${price}`
+      );
       if (tradeDirection === 'up' && scripData.ltp > price) {
         console.log(`${ALGO}: fetching ce option ...`);
         await delay({ milliSeconds: DELAY });
