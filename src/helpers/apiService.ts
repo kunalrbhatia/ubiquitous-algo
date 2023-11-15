@@ -1,11 +1,10 @@
-import { get, isArray, isEmpty } from 'lodash';
+import { get, isArray } from 'lodash';
 let { SmartAPI } = require('smartapi-javascript');
 const totp = require('totp-generator');
 import {
   ISmartApiData,
   LtpDataType,
   ScripResponse,
-  TimeComparisonType,
   doOrderResponse,
   doOrderType,
   getLtpDataType,
@@ -30,13 +29,11 @@ import {
   getAtmStrikePrice,
   getLastThursdayOfCurrentMonth,
   getLotSize,
-  isMarketClosed,
-  setSmartSession,
+  isCurrentTimeGreater,
   updateMaxSl,
 } from './functions';
 import SmartSession from '../store/smartSession';
 import { Response } from 'express';
-import moment from 'moment-timezone';
 export const generateSmartSession = async (): Promise<ISmartApiData> => {
   const cred = DataStore.getInstance().getPostData();
   const smart_api = new SmartAPI({
@@ -314,6 +311,7 @@ const takeOrbTrade = async ({
   tradeDirection: 'up' | 'down';
   price: number;
 }) => {
+  let optionScrip: scripMasterResponse | null = null;
   console.log(`${ALGO}: fetching open positions ...`);
   await delay({ milliSeconds: DELAY });
   let positionsResponse = await getPositions();
@@ -353,6 +351,7 @@ const takeOrbTrade = async ({
         });
         console.log(`${ALGO}: ce option `, getCeScrip);
         if (getCeScrip.length === 1) {
+          optionScrip = getCeScrip[0];
           await delay({ milliSeconds: DELAY });
           const doOrderResponse = await doOrder({
             tradingsymbol: get(getCeScrip[0], 'symbol', '') || '',
@@ -374,6 +373,7 @@ const takeOrbTrade = async ({
         });
         console.log(`${ALGO}: pe option `, getPeScrip);
         if (getPeScrip.length === 1) {
+          optionScrip = getPeScrip[0];
           await delay({ milliSeconds: DELAY });
           const doOrderResponse = await doOrder({
             tradingsymbol: get(getPeScrip[0], 'symbol', '') || '',
@@ -387,6 +387,7 @@ const takeOrbTrade = async ({
       }
     }
   }
+  return optionScrip;
 };
 const getMtm = async ({ scrip }: { scrip: ScripResponse }) => {
   await delay({ milliSeconds: DELAY });
@@ -415,31 +416,70 @@ const checkSL = async ({
   maxSl: number;
   trailSl: number;
   tradeDirection: 'up' | 'down';
-  scrip: ScripResponse;
+  scrip: ScripResponse | null;
   mtm: number;
 }) => {
   const updatedMaxSl = updateMaxSl({ mtm, maxSl, trailSl });
   console.log(`${ALGO}: updatedMaxSl: ${updatedMaxSl}`);
-  if (mtm < 0 && Math.abs(mtm) > updatedMaxSl) {
-    if (tradeDirection === 'up') {
-      await delay({ milliSeconds: DELAY });
-      await doOrder({
-        tradingsymbol: scrip.symbol,
-        symboltoken: scrip.token,
-        transactionType: TRANSACTION_TYPE_SELL,
-        qty: getLotSize({ scrip: scrip }),
-        productType: 'INTRADAY',
-      });
-    } else {
-      await delay({ milliSeconds: DELAY });
-      await doOrder({
-        tradingsymbol: scrip.symbol,
-        symboltoken: scrip.token,
-        transactionType: TRANSACTION_TYPE_BUY,
-        qty: getLotSize({ scrip: scrip }),
-        productType: 'INTRADAY',
-      });
-    }
+  if (
+    mtm < 0 &&
+    Math.abs(mtm) > updatedMaxSl &&
+    scrip &&
+    tradeDirection === 'up'
+  ) {
+    await delay({ milliSeconds: DELAY });
+    await doOrder({
+      tradingsymbol: scrip.symbol,
+      symboltoken: scrip.token,
+      transactionType: TRANSACTION_TYPE_SELL,
+      qty: getLotSize({ scrip: scrip }),
+      productType: 'INTRADAY',
+    });
+  } else if (
+    mtm < 0 &&
+    Math.abs(mtm) > updatedMaxSl &&
+    scrip &&
+    tradeDirection === 'down'
+  ) {
+    await delay({ milliSeconds: DELAY });
+    await doOrder({
+      tradingsymbol: scrip.symbol,
+      symboltoken: scrip.token,
+      transactionType: TRANSACTION_TYPE_BUY,
+      qty: getLotSize({ scrip: scrip }),
+      productType: 'INTRADAY',
+    });
+  }
+};
+const stopTrade = async ({
+  tradeDirection,
+  scrip,
+}: {
+  tradeDirection: 'up' | 'down';
+  scrip: ScripResponse | null;
+}) => {
+  const hasTimePassedToTakeTrade = isCurrentTimeGreater({
+    hours: 15,
+    minutes: 15,
+  });
+  if (hasTimePassedToTakeTrade && tradeDirection === 'up' && scrip) {
+    await delay({ milliSeconds: DELAY });
+    await doOrder({
+      tradingsymbol: scrip.symbol,
+      symboltoken: scrip.token,
+      transactionType: TRANSACTION_TYPE_SELL,
+      qty: getLotSize({ scrip: scrip }),
+      productType: 'INTRADAY',
+    });
+  } else if (hasTimePassedToTakeTrade && tradeDirection === 'down' && scrip) {
+    await delay({ milliSeconds: DELAY });
+    await doOrder({
+      tradingsymbol: scrip.symbol,
+      symboltoken: scrip.token,
+      transactionType: TRANSACTION_TYPE_BUY,
+      qty: getLotSize({ scrip: scrip }),
+      productType: 'INTRADAY',
+    });
   }
 };
 export const runOrb = async ({
@@ -454,11 +494,13 @@ export const runOrb = async ({
   const scrip = await getStock({ scriptName });
   console.log(`${ALGO}: fetched scrip: ${scrip.symbol}`);
   await delay({ milliSeconds: DELAY });
-  await takeOrbTrade({ price, scrip, tradeDirection });
+  const optionScript = await takeOrbTrade({ price, scrip, tradeDirection });
   await delay({ milliSeconds: DELAY });
   const mtm = await getMtm({ scrip });
   console.log(`${ALGO}: mtm ${mtm}`);
   await delay({ milliSeconds: DELAY });
-  await checkSL({ mtm, maxSl, trailSl, tradeDirection, scrip });
+  await checkSL({ mtm, maxSl, trailSl, tradeDirection, scrip: optionScript });
+  await delay({ milliSeconds: DELAY });
+  await stopTrade({ scrip: optionScript, tradeDirection });
   return { mtm };
 };
