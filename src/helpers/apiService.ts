@@ -340,6 +340,27 @@ const takeOrbTrade = async ({
       const atm = await getAtmStrikePrice({ scrip, ltp: scripData.ltp });
       console.log(`${ALGO}: ATM strike price is `, atm);
       if (tradeDirection === 'up' && scripData.ltp > price) {
+        console.log(`${ALGO}: fetching ce option ...`);
+        await delay({ milliSeconds: DELAY });
+        const getCeScrip = await getOption({
+          scriptName: scrip.name,
+          strikePrice: atm.toString(),
+          optionType: 'CE',
+          expiryDate: getLastThursdayOfCurrentMonth(),
+        });
+        console.log(`${ALGO}: ce option `, getCeScrip);
+        if (getCeScrip.length === 1) {
+          await delay({ milliSeconds: DELAY });
+          const doOrderResponse = await doOrder({
+            tradingsymbol: get(getCeScrip[0], 'symbol', '') || '',
+            symboltoken: get(getCeScrip[0], 'token', '') || '',
+            qty: getLotSize({ scrip: getCeScrip[0] }),
+            transactionType: TRANSACTION_TYPE_BUY,
+            productType: 'INTRADAY',
+          });
+          console.log(`${ALGO}: order status: `, doOrderResponse);
+        }
+      } else if (tradeDirection === 'down' && scripData.ltp < price) {
         console.log(`${ALGO}: fetching pe option ...`);
         await delay({ milliSeconds: DELAY });
         const getPeScrip = await getOption({
@@ -355,28 +376,7 @@ const takeOrbTrade = async ({
             tradingsymbol: get(getPeScrip[0], 'symbol', '') || '',
             symboltoken: get(getPeScrip[0], 'token', '') || '',
             qty: getLotSize({ scrip: getPeScrip[0] }),
-            transactionType: TRANSACTION_TYPE_SELL,
-            productType: 'INTRADAY',
-          });
-          console.log(`${ALGO}: order status: `, doOrderResponse);
-        }
-      } else if (tradeDirection === 'down' && scripData.ltp < price) {
-        console.log(`${ALGO}: fetching ce option ...`);
-        await delay({ milliSeconds: DELAY });
-        const getCeScrip = await getOption({
-          scriptName: scrip.name,
-          strikePrice: atm.toString(),
-          optionType: 'CE',
-          expiryDate: getLastThursdayOfCurrentMonth(),
-        });
-        console.log(`${ALGO}: pe option `, getCeScrip);
-        if (getCeScrip.length === 1) {
-          await delay({ milliSeconds: DELAY });
-          const doOrderResponse = await doOrder({
-            tradingsymbol: get(getCeScrip[0], 'symbol', '') || '',
-            symboltoken: get(getCeScrip[0], 'token', '') || '',
-            qty: getLotSize({ scrip: getCeScrip[0] }),
-            transactionType: TRANSACTION_TYPE_SELL,
+            transactionType: TRANSACTION_TYPE_BUY,
             productType: 'INTRADAY',
           });
           console.log(`${ALGO}: order status: `, doOrderResponse);

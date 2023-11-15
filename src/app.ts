@@ -9,7 +9,7 @@ import express, {
 } from 'express';
 import bodyParser from 'body-parser';
 import createHttpError from 'http-errors';
-import {  getStocks, runOrb } from './helpers/apiService';
+import { getStocks, runOrb } from './helpers/apiService';
 import { ALGO } from './helpers/constants';
 import { isTradeAllowed, setCred } from './helpers/functions';
 import dotenv from 'dotenv';
@@ -89,14 +89,15 @@ app.post('/orb', async (req: Request, res: Response) => {
     const tradeDirection: 'up' | 'down' = req.body.trade_direction;
     log(`${ALGO}: calling isTradeAllowed function...`);
     const canTakeTrade = await isTradeAllowed();
-    //if (canTakeTrade)
-    response = await runOrb({
-      scriptName,
-      price,
-      maxSl,
-      tradeDirection,
-      trailSl,
-    });
+    if (canTakeTrade) {
+      response = await runOrb({
+        scriptName,
+        price,
+        maxSl,
+        tradeDirection,
+        trailSl,
+      });
+    }
     log(`\n${ALGO}: mtm object `, response);
     res.send(response);
   } catch (err) {
