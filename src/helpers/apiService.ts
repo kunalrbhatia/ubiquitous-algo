@@ -195,7 +195,13 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
       throw evt;
     });
 };
-export const getStocks = async ({ scriptName }: { scriptName: string }) => {
+export const getStocks = async ({
+  scriptName,
+  strike,
+}: {
+  scriptName: string;
+  strike: string;
+}) => {
   await delay({ milliSeconds: DELAY });
   let scripMaster: scripMasterResponse[] = await fetchData();
   console.log(
@@ -209,8 +215,8 @@ export const getStocks = async ({ scriptName }: { scriptName: string }) => {
       const _scripName: string = get(scrip, 'symbol', '') || '';
       return (
         _scripName.includes(scriptName) &&
-        get(scrip, 'exch_seg') === 'NSE' &&
-        _scripName.endsWith('-EQ')
+        get(scrip, 'exch_seg') === 'NFO' &&
+        _scripName.includes(strike)
       );
     });
     //console.log('filteredScrip: ', filteredScrip);
