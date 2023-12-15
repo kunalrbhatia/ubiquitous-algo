@@ -198,9 +198,11 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
 export const getStocks = async ({
   scriptName,
   strike,
+  optionType,
 }: {
   scriptName: string;
   strike: string;
+  optionType: string;
 }) => {
   await delay({ milliSeconds: DELAY });
   let scripMaster: scripMasterResponse[] = await fetchData();
@@ -216,7 +218,8 @@ export const getStocks = async ({
       return (
         _scripName.includes(scriptName) &&
         get(scrip, 'exch_seg') === 'NFO' &&
-        _scripName.includes(strike)
+        _scripName.includes(strike) &&
+        _scripName.includes(optionType)
       );
     });
     //console.log('filteredScrip: ', filteredScrip);

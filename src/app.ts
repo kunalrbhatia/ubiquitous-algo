@@ -66,7 +66,8 @@ app.post('/stock', async (req: Request, res: Response) => {
     setCred(req);
     const scriptName: string = String(req.body.script_name).toUpperCase();
     const strike: string = String(req.body.strike).toUpperCase();
-    const script = await getStocks({ scriptName, strike });
+    const optionType: string = String(req.body.option_type).toUpperCase();
+    const script = await getStocks({ scriptName, strike, optionType });
     res.send(script);
   } catch (err) {
     log(err);
