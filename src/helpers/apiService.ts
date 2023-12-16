@@ -8,7 +8,6 @@ import {
   doOrderResponse,
   doOrderType,
   getLtpDataType,
-  getScripType,
   runOrbType,
   scripMasterResponse,
 } from '../app.interface';
@@ -26,8 +25,6 @@ import {
 import axios, { AxiosResponse } from 'axios';
 import {
   delay,
-  getAtmStrikePrice,
-  getLastThursdayOfCurrentMonth,
   getLotSize,
   isCurrentTimeGreater,
   updateMaxSl,
@@ -243,12 +240,8 @@ export const getStock = async ({ scriptName }: { scriptName: string }) => {
     console.log(`${ALGO}: all check cleared getScrip call`);
     let filteredScrip = scripMaster.filter((scrip) => {
       const _scripName: string = get(scrip, 'symbol', '') || '';
-      return (
-        _scripName === scriptName.concat('-EQ') &&
-        get(scrip, 'exch_seg') === 'NSE'
-      );
+      return _scripName === scriptName;
     });
-    //console.log('filteredScrip: ', filteredScrip);
     if (filteredScrip.length === 1) return filteredScrip[0];
     else throw new Error('stock not found');
   } else {
@@ -257,67 +250,11 @@ export const getStock = async ({ scriptName }: { scriptName: string }) => {
     throw errorMessage;
   }
 };
-export const getOption = async ({
-  scriptName,
-  strikePrice,
-  optionType,
-  expiryDate,
-}: getScripType): Promise<scripMasterResponse[]> => {
-  await delay({ milliSeconds: DELAY });
-  let scripMaster: scripMasterResponse[] = await fetchData();
-  console.log(
-    `${ALGO}: scriptName: ${scriptName}, is scrip master an array: ${isArray(
-      scripMaster
-    )}, its length is: ${scripMaster.length}`
-  );
-  if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
-    console.log(`${ALGO}: all check cleared getScrip call`);
-    let scrips = scripMaster.filter((scrip) => {
-      const _scripName: string = get(scrip, 'name', '') || '';
-      const _symbol: string = get(scrip, 'symbol', '') || '';
-      const _expiry: string = get(scrip, 'expiry', '') || '';
-      return (
-        (_scripName.includes(scriptName) || _scripName === scriptName) &&
-        get(scrip, 'exch_seg') === 'NFO' &&
-        get(scrip, 'instrumenttype') === 'OPTSTK' &&
-        (strikePrice === undefined || _symbol.includes(strikePrice)) &&
-        (optionType === undefined || _symbol.includes(optionType)) &&
-        _expiry === expiryDate
-      );
-    });
-    scrips.sort(
-      (curr: object, next: object) =>
-        get(curr, 'token', 0) - get(next, 'token', 0)
-    );
-    scrips = scrips.map((element: object, index: number) => {
-      return {
-        exch_seg: get(element, 'exch_seg', '') || '',
-        expiry: get(element, 'expiry', '') || '',
-        instrumenttype: get(element, 'instrumenttype', '') || '',
-        lotsize: get(element, 'lotsize', '') || '',
-        name: get(element, 'name', '') || '',
-        strike: get(element, 'strike', '') || '',
-        symbol: get(element, 'symbol', '') || '',
-        tick_size: get(element, 'tick_size', '') || '',
-        token: get(element, 'token', '') || '',
-        label: get(element, 'name', 'NoName') || 'NoName',
-        key: index.toString(),
-      };
-    });
-    return scrips;
-  } else {
-    const errorMessage = `${ALGO}: getScrip failed`;
-    console.log(errorMessage);
-    throw errorMessage;
-  }
-};
 const takeOrbTrade = async ({
   scrip,
-  tradeDirection,
   price,
 }: {
   scrip: scripMasterResponse;
-  tradeDirection: 'up' | 'down';
   price: number;
 }) => {
   let optionScrip: scripMasterResponse | null = null;
@@ -342,52 +279,20 @@ const takeOrbTrade = async ({
       console.log(
         `${ALGO}: current price of the selected scrip is ${scripData.ltp}`
       );
-      console.log(`${ALGO}: calculating ATM strike price ...`);
-      await delay({ milliSeconds: DELAY });
-      const atm = await getAtmStrikePrice({ scrip, ltp: scripData.ltp });
-      console.log(`${ALGO}: ATM strike price is `, atm);
-      console.log(
-        `${ALGO}: Direction is ${tradeDirection}, ltp is ${scripData.ltp}, user given price is ${price}`
-      );
-      if (tradeDirection === 'up' && scripData.ltp > price) {
-        console.log(`${ALGO}: fetching ce option ...`);
+      if (scripData.ltp > price) {
+        console.log(`${ALGO}: fetching option ...`);
         await delay({ milliSeconds: DELAY });
-        const getCeScrip = await getOption({
-          scriptName: scrip.name,
-          strikePrice: atm.toString(),
-          optionType: 'CE',
-          expiryDate: getLastThursdayOfCurrentMonth(),
+        const getOptionScrip = await getStock({
+          scriptName: scrip.symbol,
         });
-        console.log(`${ALGO}: ce option `, getCeScrip);
-        if (getCeScrip.length === 1) {
-          optionScrip = getCeScrip[0];
+        console.log(`${ALGO}: option `, getOptionScrip);
+        if (getOptionScrip) {
+          optionScrip = getOptionScrip;
           await delay({ milliSeconds: DELAY });
           const doOrderResponse = await doOrder({
-            tradingsymbol: get(getCeScrip[0], 'symbol', '') || '',
-            symboltoken: get(getCeScrip[0], 'token', '') || '',
-            qty: getLotSize({ scrip: getCeScrip[0] }),
-            transactionType: TRANSACTION_TYPE_BUY,
-            productType: 'INTRADAY',
-          });
-          console.log(`${ALGO}: order status: `, doOrderResponse);
-        }
-      } else if (tradeDirection === 'down' && scripData.ltp < price) {
-        console.log(`${ALGO}: fetching pe option ...`);
-        await delay({ milliSeconds: DELAY });
-        const getPeScrip = await getOption({
-          scriptName: scrip.name,
-          strikePrice: atm.toString(),
-          optionType: 'PE',
-          expiryDate: getLastThursdayOfCurrentMonth(),
-        });
-        console.log(`${ALGO}: pe option `, getPeScrip);
-        if (getPeScrip.length === 1) {
-          optionScrip = getPeScrip[0];
-          await delay({ milliSeconds: DELAY });
-          const doOrderResponse = await doOrder({
-            tradingsymbol: get(getPeScrip[0], 'symbol', '') || '',
-            symboltoken: get(getPeScrip[0], 'token', '') || '',
-            qty: getLotSize({ scrip: getPeScrip[0] }),
+            tradingsymbol: get(getOptionScrip, 'symbol', '') || '',
+            symboltoken: get(getOptionScrip, 'token', '') || '',
+            qty: getLotSize({ scrip: getOptionScrip }),
             transactionType: TRANSACTION_TYPE_BUY,
             productType: 'INTRADAY',
           });
@@ -418,74 +323,27 @@ const getMtm = async ({ scrip }: { scrip: ScripResponse }) => {
 const checkSL = async ({
   maxSl,
   trailSl,
-  tradeDirection,
   scrip,
   mtm,
 }: {
   maxSl: number;
   trailSl: number;
-  tradeDirection: 'up' | 'down';
   scrip: ScripResponse | null;
   mtm: number;
 }) => {
   const updatedMaxSl = updateMaxSl({ mtm, maxSl, trailSl });
   console.log(`${ALGO}: updatedMaxSl: ${updatedMaxSl}`);
-  if (
-    mtm < 0 &&
-    Math.abs(mtm) > updatedMaxSl &&
-    scrip &&
-    tradeDirection === 'up'
-  ) {
-    await delay({ milliSeconds: DELAY });
-    await doOrder({
-      tradingsymbol: scrip.symbol,
-      symboltoken: scrip.token,
-      transactionType: TRANSACTION_TYPE_SELL,
-      qty: getLotSize({ scrip: scrip }),
-      productType: 'INTRADAY',
-    });
-  } else if (
-    mtm < 0 &&
-    Math.abs(mtm) > updatedMaxSl &&
-    scrip &&
-    tradeDirection === 'down'
-  ) {
-    await delay({ milliSeconds: DELAY });
-    await doOrder({
-      tradingsymbol: scrip.symbol,
-      symboltoken: scrip.token,
-      transactionType: TRANSACTION_TYPE_BUY,
-      qty: getLotSize({ scrip: scrip }),
-      productType: 'INTRADAY',
-    });
+  if (mtm < 0 && Math.abs(mtm) > updatedMaxSl && scrip) {
+    await stopTrade({ scrip });
   }
 };
-const stopTrade = async ({
-  tradeDirection,
-  scrip,
-}: {
-  tradeDirection: 'up' | 'down';
-  scrip: ScripResponse | null;
-}) => {
-  const hasTimePassedToTakeTrade = isCurrentTimeGreater({
-    hours: 15,
-    minutes: 15,
-  });
-  if (hasTimePassedToTakeTrade && tradeDirection === 'up' && scrip) {
+const stopTrade = async ({ scrip }: { scrip: ScripResponse | null }) => {
+  if (scrip) {
     await delay({ milliSeconds: DELAY });
     await doOrder({
       tradingsymbol: scrip.symbol,
       symboltoken: scrip.token,
       transactionType: TRANSACTION_TYPE_SELL,
-      qty: getLotSize({ scrip: scrip }),
-      productType: 'INTRADAY',
-    });
-  } else if (hasTimePassedToTakeTrade && tradeDirection === 'down' && scrip) {
-    await delay({ milliSeconds: DELAY });
-    await doOrder({
-      tradingsymbol: scrip.symbol,
-      symboltoken: scrip.token,
-      transactionType: TRANSACTION_TYPE_BUY,
       qty: getLotSize({ scrip: scrip }),
       productType: 'INTRADAY',
     });
@@ -495,7 +353,6 @@ export const runOrb = async ({
   scriptName,
   price,
   maxSl,
-  tradeDirection,
   trailSl,
 }: runOrbType) => {
   console.log(`${ALGO}: getting scrip ...`);
@@ -503,13 +360,16 @@ export const runOrb = async ({
   const scrip = await getStock({ scriptName });
   console.log(`${ALGO}: fetched scrip: ${scrip.symbol}`);
   await delay({ milliSeconds: DELAY });
-  const optionScript = await takeOrbTrade({ price, scrip, tradeDirection });
+  const optionScript = await takeOrbTrade({ price, scrip });
   await delay({ milliSeconds: DELAY });
-  const mtm = await getMtm({ scrip });
+  const mtm = (await getMtm({ scrip })) || 0;
   console.log(`${ALGO}: mtm ${mtm}`);
   await delay({ milliSeconds: DELAY });
-  await checkSL({ mtm, maxSl, trailSl, tradeDirection, scrip: optionScript });
-  await delay({ milliSeconds: DELAY });
-  await stopTrade({ scrip: optionScript, tradeDirection });
-  return { mtm };
+  await checkSL({ mtm, maxSl, trailSl, scrip: optionScript });
+  const isTimePassedToCloseTrade = isCurrentTimeGreater({
+    hours: 15,
+    minutes: 15,
+  });
+  if (isTimePassedToCloseTrade) await stopTrade({ scrip: optionScript });
+  return { mtm: mtm };
 };

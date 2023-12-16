@@ -24,7 +24,6 @@ export type runOrbType = {
   scriptName: string;
   price: number;
   maxSl: number;
-  tradeDirection: 'up' | 'down';
   trailSl: number;
 };
 export type getLtpDataType = {
