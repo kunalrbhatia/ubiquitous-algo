@@ -1,7 +1,6 @@
 // constants.ts
 
-export const STREAM_URL =
-  'wss://omnefeeds.angelbroking.com/NestHtml5Mobile/socket/stream';
+export const STREAM_URL = 'wss://smartapisocket.angelone.in/smart-stream';
 export const GET_MARGIN =
   'https://apiconnect.angelbroking.com/rest/secure/angelbroking/user/v1/getRMS';
 export const ORDER_API =

@@ -1,5 +1,5 @@
 import { get, isArray } from 'lodash';
-let { SmartAPI } = require('smartapi-javascript');
+let { SmartAPI, WebSocketV2 } = require('smartapi-javascript');
 const totp = require('totp-generator');
 import {
   ISmartApiData,
@@ -228,7 +228,11 @@ export const getStocks = async ({
     throw errorMessage;
   }
 };
-export const getStock = async ({ scriptName }: { scriptName: string }) => {
+export const getOptionScrip = async ({
+  scriptName,
+}: {
+  scriptName: string;
+}) => {
   await delay({ milliSeconds: DELAY });
   let scripMaster: scripMasterResponse[] = await fetchData();
   console.log(
@@ -260,6 +264,8 @@ const takeOrbTrade = async ({
   let optionScrip: scripMasterResponse | null = null;
   console.log(`${ALGO}: fetching open positions ...`);
   await delay({ milliSeconds: DELAY });
+  /* Below code is in hold */
+  /* 
   let positionsResponse = await getPositions();
   let positionsData = get(positionsResponse, 'data', []) ?? [];
   if (Array.isArray(positionsData) && positionsData.length > 0) {
@@ -282,17 +288,16 @@ const takeOrbTrade = async ({
       if (scripData.ltp > price) {
         console.log(`${ALGO}: fetching option ...`);
         await delay({ milliSeconds: DELAY });
-        const getOptionScrip = await getStock({
+        const optionScrip = await getOptionScrip({
           scriptName: scrip.symbol,
         });
-        console.log(`${ALGO}: option `, getOptionScrip);
-        if (getOptionScrip) {
-          optionScrip = getOptionScrip;
+        console.log(`${ALGO}: option `, optionScrip);
+        if (optionScrip) {
           await delay({ milliSeconds: DELAY });
           const doOrderResponse = await doOrder({
-            tradingsymbol: get(getOptionScrip, 'symbol', '') || '',
-            symboltoken: get(getOptionScrip, 'token', '') || '',
-            qty: getLotSize({ scrip: getOptionScrip }),
+            tradingsymbol: get(optionScrip, 'symbol', '') || '',
+            symboltoken: get(optionScrip, 'token', '') || '',
+            qty: getLotSize({ scrip: optionScrip }),
             transactionType: TRANSACTION_TYPE_BUY,
             productType: 'INTRADAY',
           });
@@ -301,6 +306,7 @@ const takeOrbTrade = async ({
       }
     }
   }
+  */
   return optionScrip;
 };
 const getMtm = async ({ scrip }: { scrip: ScripResponse }) => {
@@ -356,10 +362,10 @@ export const runOrb = async ({
   trailSl,
 }: runOrbType) => {
   console.log(`${ALGO}: getting scrip ...`);
-  await delay({ milliSeconds: DELAY });
-  const scrip = await getStock({ scriptName });
+  const scrip = await getOptionScrip({ scriptName });
   console.log(`${ALGO}: fetched scrip: ${scrip.symbol}`);
-  await delay({ milliSeconds: DELAY });
+  openWebsocket({ optionScrip: scrip });
+  /* await delay({ milliSeconds: DELAY });
   const optionScript = await takeOrbTrade({ price, scrip });
   await delay({ milliSeconds: DELAY });
   const mtm = (await getMtm({ scrip })) || 0;
@@ -370,6 +376,35 @@ export const runOrb = async ({
     hours: 15,
     minutes: 15,
   });
-  if (isTimePassedToCloseTrade) await stopTrade({ scrip: optionScript });
-  return { mtm: mtm };
+  if (isTimePassedToCloseTrade) await stopTrade({ scrip: optionScript }); */
+  // return { mtm: mtm };
+  return { mtm: 0 };
+};
+export const openWebsocket = async ({
+  optionScrip,
+}: {
+  optionScrip: scripMasterResponse;
+}) => {
+  const smartApiData = SmartSession.getInstance().getPostData();
+  const cred = DataStore.getInstance().getPostData();
+  let web_socket = new WebSocketV2({
+    jwttoken: smartApiData.jwtToken,
+    apikey: cred.APIKEY,
+    clientcode: cred.CLIENT_CODE,
+    feedtype: smartApiData.feedToken,
+  });
+  web_socket.connect().then((res: object) => {
+    let json_req = {
+      correlationID: 'abcde12345',
+      action: 1,
+      mode: 2,
+      exchangeType: 2,
+      tokens: [optionScrip.token],
+    };
+    web_socket.fetchData(json_req);
+    web_socket.on('tick', receiveTick);
+    function receiveTick(data: object) {
+      console.log('receiveTick:::::', data);
+    }
+  });
 };
