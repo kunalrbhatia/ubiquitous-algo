@@ -15,6 +15,7 @@ import { isTradeAllowed, setCred } from './helpers/functions';
 import dotenv from 'dotenv';
 import { Socket } from 'net';
 import { log } from 'console';
+import { Scrips } from './app.interface';
 
 const app: Application = express();
 app.use(bodyParser.json());
@@ -84,20 +85,20 @@ app.post('/orb', async (req: Request, res: Response) => {
     log(`${ALGO}: time, ${istTz}`);
     setCred(req);
     let response = { mtm: -1 };
-    const scriptName: string = req.body.script_name;
+    const scrips: Scrips[] = req.body.scrips;
     const price: number = req.body.price;
     const maxSl: number = req.body.max_sl || -2000;
     const trailSl: number = req.body.trail_sl || 500;
     log(`${ALGO}: calling isTradeAllowed function...`);
     const canTakeTrade = await isTradeAllowed();
-    if (canTakeTrade) {
-      response = await runOrb({
-        scriptName,
-        price,
-        maxSl,
-        trailSl,
-      });
-    }
+    //if (canTakeTrade) {
+    response = await runOrb({
+      scrips,
+      price,
+      maxSl,
+      trailSl,
+    });
+    //}
     log(`\n${ALGO}: mtm object `, response);
     res.send(response);
   } catch (err) {

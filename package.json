@@ -30,7 +30,7 @@
     "@types/jest": "^29.5.3",
     "@types/lodash": "^4.14.195",
     "@types/moment-timezone": "^0.5.30",
-    "@types/node": "^18.16.19",
+    "@types/node": "^18.19.3",
     "@types/node-cron": "^3.0.8",
     "@types/supertest": "^2.0.12",
     "babel-plugin-transform-remove-console": "^6.9.4",
