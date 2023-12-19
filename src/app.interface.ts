@@ -24,12 +24,10 @@ export type Scrips = {
   name: string;
   price: number;
   sl: number;
+  tsl: number;
 };
 export type runOrbType = {
   scrips: Scrips[];
-  price: number;
-  maxSl: number;
-  trailSl: number;
 };
 export type getLtpDataType = {
   exchange: string;
@@ -98,6 +96,7 @@ export type TimeComparisonType = { hours: number; minutes: number };
 export type OpenWebsocketType = {
   optionScrips: scripMasterResponse[];
   hasExistingTrades: [] | Position[];
+  scrips: Scrips[];
 };
 export type Position = {
   symboltoken: string;
@@ -143,4 +142,12 @@ export type Position = {
   unrealised: string;
   ltp: string;
   close: string;
+};
+export type Tick = {
+  subscription_mode: string;
+  exchange_type: string;
+  token: string;
+  sequence_number: string;
+  exchange_timestamp: string;
+  last_traded_price: string;
 };

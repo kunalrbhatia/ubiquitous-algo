@@ -86,17 +86,11 @@ app.post('/orb', async (req: Request, res: Response) => {
     setCred(req);
     let response = { mtm: -1 };
     const scrips: Scrips[] = req.body.scrips;
-    const price: number = req.body.price;
-    const maxSl: number = req.body.max_sl || -2000;
-    const trailSl: number = req.body.trail_sl || 500;
     log(`${ALGO}: calling isTradeAllowed function...`);
     const canTakeTrade = await isTradeAllowed();
     //if (canTakeTrade) {
     response = await runOrb({
       scrips,
-      price,
-      maxSl,
-      trailSl,
     });
     //}
     log(`\n${ALGO}: mtm object `, response);

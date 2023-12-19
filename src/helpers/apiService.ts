@@ -1,20 +1,19 @@
-import { get, isArray } from 'lodash';
-let { SmartAPI, WebSocketV2 } = require('smartapi-javascript');
-const totp = require('totp-generator');
+import { get, isArray, isObject } from 'lodash'
 import {
-  ISmartApiData,
-  LtpDataType,
-  OpenWebsocketType,
-  Position,
-  ScripResponse,
-  Scrips,
-  doOrderResponse,
-  doOrderType,
-  getLtpDataType,
-  runOrbType,
-  scripMasterResponse,
-} from '../app.interface';
-import DataStore from '../store/dataStore';
+  type ISmartApiData,
+  type LtpDataType,
+  type OpenWebsocketType,
+  type Position,
+  type ScripResponse,
+  type Scrips,
+  type Tick,
+  type doOrderResponse,
+  type doOrderType,
+  type getLtpDataType,
+  type runOrbType,
+  type scripMasterResponse,
+} from '../app.interface'
+import DataStore from '../store/dataStore'
 import {
   ALGO,
   DELAY,
@@ -22,46 +21,48 @@ import {
   GET_POSITIONS,
   ORDER_API,
   SCRIPMASTER,
-  TRANSACTION_TYPE_BUY,
   TRANSACTION_TYPE_SELL,
-} from './constants';
-import axios, { AxiosResponse } from 'axios';
+} from './constants'
+import axios, { type AxiosResponse } from 'axios'
 import {
+  convertToFloat,
   delay,
   getLotSize,
   isCurrentTimeGreater,
   updateMaxSl,
-} from './functions';
-import SmartSession from '../store/smartSession';
-import { Response } from 'express';
+} from './functions'
+import SmartSession from '../store/smartSession'
+import { type Response } from 'express'
+const { SmartAPI, WebSocketV2 } = require('smartapi-javascript')
+const totp = require('totp-generator')
 export const generateSmartSession = async (): Promise<ISmartApiData> => {
-  const cred = DataStore.getInstance().getPostData();
+  const cred = DataStore.getInstance().getPostData()
   const smart_api = new SmartAPI({
     api_key: cred.APIKEY,
-  });
-  const TOTP = totp(cred.CLIENT_TOTP_PIN);
+  })
+  const TOTP = totp(cred.CLIENT_TOTP_PIN)
   return smart_api
     .generateSession(cred.CLIENT_CODE, cred.CLIENT_PIN, TOTP)
     .then(async (response: object) => {
-      return get(response, 'data');
+      get(response, 'data')
     })
     .catch((ex: object) => {
-      console.log(`${ALGO}: generateSmartSession failed error below`);
-      console.log(ex);
-      throw ex;
-    });
-};
+      console.log(`${ALGO}: generateSmartSession failed error below`)
+      console.log(ex)
+      throw ex
+    })
+}
 export const getLtpData = async ({
   exchange,
   tradingsymbol,
   symboltoken,
 }: getLtpDataType): Promise<LtpDataType> => {
-  const smartInstance = SmartSession.getInstance();
-  await delay({ milliSeconds: DELAY });
-  const smartApiData: ISmartApiData = smartInstance.getPostData();
-  const jwtToken = get(smartApiData, 'jwtToken');
-  const data = JSON.stringify({ exchange, tradingsymbol, symboltoken });
-  const cred = DataStore.getInstance().getPostData();
+  const smartInstance = SmartSession.getInstance()
+  await delay({ milliSeconds: DELAY })
+  const smartApiData: ISmartApiData = smartInstance.getPostData()
+  const jwtToken = get(smartApiData, 'jwtToken')
+  const data = JSON.stringify({ exchange, tradingsymbol, symboltoken })
+  const cred = DataStore.getInstance().getPostData()
   const config = {
     method: 'post',
     url: GET_LTP_DATA_API,
@@ -76,25 +77,25 @@ export const getLtpData = async ({
       'X-MACAddress': 'MAC_ADDRESS',
       'X-PrivateKey': cred.APIKEY,
     },
-    data: data,
-  };
-  try {
-    const response = await axios(config);
-    return get(response, 'data.data', {}) || {};
-  } catch (error) {
-    console.log(`${ALGO}: the GET_LTP_DATA_API failed error below`);
-    console.log(error);
-    throw error;
+    data,
   }
-};
+  try {
+    const response = await axios(config)
+    return get(response, 'data.data', {}) || {}
+  } catch (error) {
+    console.log(`${ALGO}: the GET_LTP_DATA_API failed error below`)
+    console.log(error)
+    throw error
+  }
+}
 export const getPositions = async () => {
-  await delay({ milliSeconds: DELAY });
-  const smartInstance = SmartSession.getInstance();
-  await delay({ milliSeconds: DELAY });
-  const smartApiData: ISmartApiData = smartInstance.getPostData();
-  const jwtToken = get(smartApiData, 'jwtToken');
-  const cred = DataStore.getInstance().getPostData();
-  let config = {
+  await delay({ milliSeconds: DELAY })
+  const smartInstance = SmartSession.getInstance()
+  await delay({ milliSeconds: DELAY })
+  const smartApiData: ISmartApiData = smartInstance.getPostData()
+  const jwtToken = get(smartApiData, 'jwtToken')
+  const cred = DataStore.getInstance().getPostData()
+  const config = {
     method: 'get',
     url: GET_POSITIONS,
     headers: {
@@ -109,18 +110,18 @@ export const getPositions = async () => {
       'X-PrivateKey': cred.APIKEY,
     },
     data: '',
-  };
-  return axios(config)
+  }
+  await axios(config)
     .then(function (response: object) {
-      return get(response, 'data');
+      get(response, 'data')
     })
     .catch(function (error: object) {
-      const errorMessage = `${ALGO}: getPositions failed error below`;
-      console.log(errorMessage);
-      console.log(error);
-      throw error;
-    });
-};
+      const errorMessage = `${ALGO}: getPositions failed error below`
+      console.log(errorMessage)
+      console.log(error)
+      throw error
+    })
+}
 export const doOrder = async ({
   tradingsymbol,
   transactionType,
@@ -128,11 +129,11 @@ export const doOrder = async ({
   productType = 'CARRYFORWARD',
   qty,
 }: doOrderType): Promise<doOrderResponse> => {
-  const smartInstance = SmartSession.getInstance();
-  await delay({ milliSeconds: DELAY });
-  const smartApiData: ISmartApiData = smartInstance.getPostData();
-  const jwtToken = get(smartApiData, 'jwtToken');
-  let data = JSON.stringify({
+  const smartInstance = SmartSession.getInstance()
+  await delay({ milliSeconds: DELAY })
+  const smartApiData: ISmartApiData = smartInstance.getPostData()
+  const jwtToken = get(smartApiData, 'jwtToken')
+  const data = JSON.stringify({
     exchange: 'NFO',
     tradingsymbol,
     symboltoken,
@@ -143,10 +144,10 @@ export const doOrder = async ({
     variety: 'NORMAL',
     producttype: productType,
     duration: 'DAY',
-  });
-  console.log(`${ALGO}: doOrder data `, data);
-  const cred = DataStore.getInstance().getPostData();
-  let config = {
+  })
+  console.log(`${ALGO}: doOrder data `, data)
+  const cred = DataStore.getInstance().getPostData()
+  const config = {
     method: 'post',
     url: ORDER_API,
     headers: {
@@ -160,24 +161,24 @@ export const doOrder = async ({
       'X-MACAddress': 'MAC_ADDRESS',
       'X-PrivateKey': cred.APIKEY,
     },
-    data: data,
-  };
-  return axios(config)
+    data,
+  }
+  return await axios(config)
     .then((response: AxiosResponse) => {
-      return get(response, 'data');
+      return get(response, 'data')
     })
     .catch(function (error: Response) {
-      const errorMessage = `${ALGO}: doOrder failed error below`;
-      console.log(errorMessage);
-      console.log(error);
-      throw error;
-    });
-};
+      const errorMessage = `${ALGO}: doOrder failed error below`
+      console.log(errorMessage)
+      console.log(error)
+      throw error
+    })
+}
 export const fetchData = async (): Promise<scripMasterResponse[]> => {
   return await axios
     .get(SCRIPMASTER)
     .then((response: AxiosResponse) => {
-      return get(response, 'data', []) || [];
+      return get(response, 'data', []) || []
       // console.log(
       //   `${ALGO}: response if script master api loaded and its length is ${acData.length}`
       // );
@@ -189,82 +190,82 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
       // return scripMaster;
     })
     .catch((evt: object) => {
-      console.log(`${ALGO}: fetchData failed error below`);
-      throw evt;
-    });
-};
+      console.log(`${ALGO}: fetchData failed error below`)
+      throw evt
+    })
+}
 export const getStocks = async ({
   scriptName,
   strike,
   optionType,
 }: {
-  scriptName: string;
-  strike: string;
-  optionType: string;
+  scriptName: string
+  strike: string
+  optionType: string
 }) => {
-  await delay({ milliSeconds: DELAY });
-  let scripMaster: scripMasterResponse[] = await fetchData();
+  await delay({ milliSeconds: DELAY })
+  const scripMaster: scripMasterResponse[] = await fetchData()
   // console.log(
   //   `${ALGO}: scriptName: ${scriptName}, is scrip master an array: ${isArray(
   //     scripMaster
   //   )}, its length is: ${scripMaster.length}`
   // );
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
-    console.log(`${ALGO}: all check cleared getScrip call`);
-    let filteredScrip = scripMaster.filter((scrip) => {
-      const _scripName: string = get(scrip, 'symbol', '') || '';
+    console.log(`${ALGO}: all check cleared getScrip call`)
+    const filteredScrip = scripMaster.filter((scrip) => {
+      const _scripName: string = get(scrip, 'symbol', '') || ''
       return (
         _scripName.includes(scriptName) &&
         get(scrip, 'exch_seg') === 'NFO' &&
         _scripName.includes(strike) &&
         _scripName.includes(optionType)
-      );
-    });
-    //console.log('filteredScrip: ', filteredScrip);
-    if (filteredScrip.length >= 1) return filteredScrip;
-    else throw new Error('stock(s) not found');
+      )
+    })
+    // console.log('filteredScrip: ', filteredScrip);
+    if (filteredScrip.length >= 1) return filteredScrip
+    else throw new Error('stock(s) not found')
   } else {
-    const errorMessage = `${ALGO}: getStock failed`;
-    console.log(errorMessage);
-    throw errorMessage;
+    const errorMessage = `${ALGO}: getStock failed`
+    console.log(errorMessage)
+    throw errorMessage
   }
-};
+}
 export const getOptionScrip = async ({ scrips }: { scrips: Scrips[] }) => {
-  await delay({ milliSeconds: DELAY });
-  let scripMaster: scripMasterResponse[] = await fetchData();
+  await delay({ milliSeconds: DELAY })
+  const scripMaster: scripMasterResponse[] = await fetchData()
   if (
     isArray(scrips) &&
     scrips.length > 0 &&
     isArray(scripMaster) &&
     scripMaster.length > 0
   ) {
-    let filteredScrip = scripMaster.filter((scrip) => {
-      const _scripName: string = get(scrip, 'symbol', '') || '';
-      const collectedScrips = [];
+    const filteredScrip = scripMaster.filter((scrip) => {
+      const _scripName: string = get(scrip, 'symbol', '') || ''
+      const collectedScrips = []
       for (const _scrip of scrips) {
-        if (_scripName === _scrip.name) collectedScrips.push(_scrip);
+        if (_scripName === _scrip.name) collectedScrips.push(_scrip)
       }
-      return collectedScrips.length > 0;
-    });
-    return filteredScrip;
+      return collectedScrips.length > 0
+    })
+    return filteredScrip
   } else {
-    const errorMessage = `${ALGO}: getStock failed`;
-    console.log(errorMessage);
-    throw errorMessage;
+    const errorMessage = `${ALGO}: getStock failed`
+    console.log(errorMessage)
+    throw errorMessage
   }
-};
+}
 const takeOrbTrade = async ({
   scrip,
   price,
 }: {
-  scrip: scripMasterResponse;
-  price: number;
+  scrip: scripMasterResponse
+  price: number
 }) => {
-  let optionScrip: scripMasterResponse | null = null;
-  console.log(`${ALGO}: fetching open positions ...`);
-  await delay({ milliSeconds: DELAY });
+  const optionScrip: scripMasterResponse | null = null
+  console.log(`${ALGO}: fetching open positions ...`)
+  await delay({ milliSeconds: DELAY })
   /* Below code is in hold */
-  /* 
+  /*
   let positionsResponse = await getPositions();
   let positionsData = get(positionsResponse, 'data', []) ?? [];
   if (Array.isArray(positionsData) && positionsData.length > 0) {
@@ -306,84 +307,84 @@ const takeOrbTrade = async ({
     }
   }
   */
-  return optionScrip;
-};
+  return optionScrip
+}
 const getMtm = async ({ scrip }: { scrip: ScripResponse }) => {
-  await delay({ milliSeconds: DELAY });
-  let positionsResponse = await getPositions();
-  let positionsData = get(positionsResponse, 'data', []) ?? [];
-  let mtm = 0;
+  await delay({ milliSeconds: DELAY })
+  const positionsResponse = await getPositions()
+  const positionsData = get(positionsResponse, 'data', []) ?? []
+  let mtm = 0
   if (Array.isArray(positionsData) && positionsData.length > 0) {
     const position = positionsData.filter((position) => {
-      const tradingSymbol = get(position, 'tradingsymbol');
+      const tradingSymbol = get(position, 'tradingsymbol')
       // console.log(
       //   `${ALGO}: tradingSymbol: ${tradingSymbol} / scrip.symbol: ${scrip.symbol}`
       // );
-      if (tradingSymbol === scrip.symbol) return position;
-    });
-    mtm = parseInt(get(position, 'unrealised', '0') ?? '0');
+      if (tradingSymbol === scrip.symbol) return position
+    })
+    mtm = parseInt(get(position, 'unrealised', '0') ?? '0')
   }
-  return mtm;
-};
+  return mtm
+}
 const checkSL = async ({
   maxSl,
   trailSl,
   scrip,
   mtm,
 }: {
-  maxSl: number;
-  trailSl: number;
-  scrip: ScripResponse | null;
-  mtm: number;
+  maxSl: number
+  trailSl: number
+  scrip: ScripResponse | null
+  mtm: number
 }) => {
-  const updatedMaxSl = updateMaxSl({ mtm, maxSl, trailSl });
-  console.log(`${ALGO}: updatedMaxSl: ${updatedMaxSl}`);
-  if (mtm < 0 && Math.abs(mtm) > updatedMaxSl && scrip) {
-    await stopTrade({ scrip });
-  }
-};
-const stopTrade = async ({ scrip }: { scrip: ScripResponse | null }) => {
+  const updatedMaxSl = updateMaxSl({ mtm, maxSl, trailSl })
+  console.log(`${ALGO}: updatedMaxSl: ${updatedMaxSl}`)
+  // if (mtm < 0 && Math.abs(mtm) > updatedMaxSl && scrip) {
+  //   await stopTrade({ scrip });
+  // }
+}
+const stopTrade = async ({ scrip }: { scrip: Position | null }) => {
   if (scrip) {
-    await delay({ milliSeconds: DELAY });
+    await delay({ milliSeconds: DELAY })
     await doOrder({
-      tradingsymbol: scrip.symbol,
-      symboltoken: scrip.token,
+      tradingsymbol: scrip.tradingsymbol,
+      symboltoken: scrip.symboltoken,
       transactionType: TRANSACTION_TYPE_SELL,
-      qty: getLotSize({ scrip: scrip }),
+      qty: getLotSize({ scrip }),
       productType: 'INTRADAY',
-    });
+    })
   }
-};
+}
 const checkExistingTrades = async ({
   scrips,
 }: {
-  scrips: scripMasterResponse[];
+  scrips: scripMasterResponse[]
 }): Promise<[] | Position[]> => {
-  let positionsResponse = await getPositions();
-  let positionsData = get(positionsResponse, 'data', []) ?? [];
+  const positionsResponse = await getPositions()
+  const positionsData = get(positionsResponse, 'data', []) ?? []
   if (Array.isArray(positionsData) && positionsData.length > 0) {
     const existingPosition = positionsData.filter((position: Position) => {
-      const positions: Position[] = [];
+      const positions: Position[] = []
       for (const scrip of scrips) {
-        if (get(position, 'tradingsymbol') === scrip.symbol)
-          positions.push(position);
+        if (get(position, 'tradingsymbol') === scrip.symbol) {
+          positions.push(position)
+        }
       }
-      return positions.length > 0;
-    });
+      return positions.length > 0
+    })
     // console.log(`${ALGO}: existingPosition, `, existingPosition);
-    if (existingPosition.length > 0) return existingPosition;
+    if (existingPosition.length > 0) return existingPosition
   }
-  return [];
-};
-export const runOrb = async ({ scrips, price, maxSl, trailSl }: runOrbType) => {
-  console.log(`${ALGO}: getting scrip ...`);
-  const scripsWithDetails = await getOptionScrip({ scrips });
+  return []
+}
+export const runOrb = async ({ scrips }: runOrbType) => {
+  console.log(`${ALGO}: getting scrip ...`)
+  const scripsWithDetails = await getOptionScrip({ scrips })
   // console.log(`${ALGO}: fetched scrip: `, scripsWithDetails);
   const hasExistingTrades = await checkExistingTrades({
     scrips: scripsWithDetails,
-  });
-  console.log(`${ALGO}: hasExistingTrades, ${hasExistingTrades.length}`);
-  openWebsocket({ optionScrips: scripsWithDetails, hasExistingTrades });
+  })
+  openWebsocket({ optionScrips: scripsWithDetails, hasExistingTrades, scrips })
   /* await delay({ milliSeconds: DELAY });
   const optionScript = await takeOrbTrade({ price, scrip });
   await delay({ milliSeconds: DELAY });
@@ -397,42 +398,72 @@ export const runOrb = async ({ scrips, price, maxSl, trailSl }: runOrbType) => {
   });
   if (isTimePassedToCloseTrade) await stopTrade({ scrip: optionScript }); */
   // return { mtm: mtm };
-  return { mtm: 0 };
-};
+  return { mtm: 0 }
+}
 export const openWebsocket = async ({
   optionScrips,
   hasExistingTrades,
+  scrips,
 }: OpenWebsocketType) => {
-  const smartApiData = SmartSession.getInstance().getPostData();
-  const cred = DataStore.getInstance().getPostData();
-  let web_socket = new WebSocketV2({
+  const smartApiData = SmartSession.getInstance().getPostData()
+  const cred = DataStore.getInstance().getPostData()
+  const web_socket = new WebSocketV2({
     jwttoken: smartApiData.jwtToken,
     apikey: cred.APIKEY,
     clientcode: cred.CLIENT_CODE,
     feedtype: smartApiData.feedToken,
-  });
-  const receiveTick = (data: object) => {
-    if (hasExistingTrades) {
-      for (const trade of hasExistingTrades) {
-        console.log(
-          `trade symbol ${trade.tradingsymbol}, trade u-pnl ${trade.unrealised}`
-        );
-      }
+  })
+  const findTradeBySymbol = (symbol: string, trades: Position[]) => {
+    for (let i = 0; i < trades.length; i++) {
+      const trade = trades[i]
+      if (trade.tradingsymbol.localeCompare(symbol)) return trade
     }
-    console.log('receiveTick:::::', data);
-  };
+    return null
+  }
+  const receiveTick = (data: Tick) => {
+    if (hasExistingTrades.length > 0 && isObject(data)) {
+      const symbol = data.token
+      for (let i = 0; i < hasExistingTrades.length; i++) {
+        const trade = hasExistingTrades[i]
+        const _symbol = trade.symboltoken
+        const unrealisedPnl = parseInt(trade.unrealised)
+        const updatedMaxSl = updateMaxSl({
+          mtm: unrealisedPnl,
+          maxSl: scrips[i].sl,
+          trailSl: scrips[i].tsl,
+        })
+        const isSameSymbol = symbol.localeCompare(_symbol) === 0
+        const isNegativeUnrealisedPnl = unrealisedPnl < 0
+        const isGreaterThanSL = Math.abs(unrealisedPnl) > scrips[i].sl
+        const isAfterTradingHours = isCurrentTimeGreater({
+          hours: 15,
+          minutes: 17,
+        })
+        const shouldStopTrade =
+          isSameSymbol &&
+          ((isNegativeUnrealisedPnl && isGreaterThanSL) ||
+            unrealisedPnl < updatedMaxSl ||
+            isAfterTradingHours)
+        if (shouldStopTrade) {
+          stopTrade({ scrip: trade })
+        }
+      }
+    } else if (isObject(data)) {
+      const ltp = convertToFloat(data.last_traded_price)
+    }
+  }
   web_socket.connect().then((res: object) => {
     const tokens: string[] = optionScrips.map(
-      (scrip: scripMasterResponse) => scrip.token
-    );
-    let json_req = {
+      (scrip: scripMasterResponse) => scrip.token,
+    )
+    const json_req = {
       correlationID: 'abcde12345',
       action: 1,
       mode: 1,
       exchangeType: 2,
-      tokens: tokens,
-    };
-    web_socket.fetchData(json_req);
-    web_socket.on('tick', receiveTick);
-  });
-};
+      tokens,
+    }
+    web_socket.fetchData(json_req)
+    web_socket.on('tick', receiveTick)
+  })
+}
