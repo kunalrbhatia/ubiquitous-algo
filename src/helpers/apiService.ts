@@ -1,5 +1,4 @@
-import { isArray, isObject } from 'lodash'
-import _get from 'lodash/get'
+import { get as _get, isArray, isObject } from 'lodash'
 import {
   type ISmartApiData,
   type LtpDataType,
@@ -38,6 +37,7 @@ import {
 import SmartSession from '../store/smartSession'
 import { type Response } from 'express'
 import OrderStore from '../store/orderStore'
+import WebSocketStore from '../store/webSocketStore'
 const { SmartAPI, WebSocketV2 } = require('smartapi-javascript')
 const totp = require('totp-generator')
 let mtm = 0
@@ -301,6 +301,7 @@ export const openWebsocket = async ({
     clientcode: cred.CLIENT_CODE,
     feedtype: smartApiData.feedToken,
   })
+  WebSocketStore.getInstance().setPostData(web_socket)
   const receiveTick = async (data: Tick) => {
     const orderData = OrderStore.getInstance().getPostData()
     if (orderData.hasOrderTaken && isObject(data)) {

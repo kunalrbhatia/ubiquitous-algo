@@ -16,6 +16,7 @@ import dotenv from 'dotenv'
 import { Socket } from 'net'
 import { log } from 'console'
 import { Scrips } from './app.interface'
+import WebSocketStore from './store/webSocketStore'
 
 const app: Application = express()
 app.use(bodyParser.json())
@@ -42,6 +43,7 @@ server.on('connection', (connection) => {
 app.get('/kill', (req, res) => {
   setTimeout(() => {
     log('Received kill signal, shutting down gracefully')
+    WebSocketStore.getInstance().getPostData().close()
     server.close(() => {
       log('Closed out remaining connections')
       process.exit(0)
