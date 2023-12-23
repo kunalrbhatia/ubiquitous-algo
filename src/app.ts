@@ -43,7 +43,8 @@ server.on('connection', (connection) => {
 app.get('/kill', (req, res) => {
   setTimeout(() => {
     log('Received kill signal, shutting down gracefully')
-    WebSocketStore.getInstance().getPostData().close()
+    const ws = WebSocketStore.getInstance().getPostData()
+    if (ws) ws.close()
     server.close(() => {
       log('Closed out remaining connections')
       process.exit(0)
