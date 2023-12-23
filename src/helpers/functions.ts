@@ -2,9 +2,11 @@ import {
   Credentails,
   ISmartApiData,
   Position,
+  Scrips,
   TimeComparisonType,
   delayType,
   reqType,
+  scripMasterResponse,
   updateMaxSlType,
 } from '../app.interface'
 import { Request } from 'express'
@@ -106,3 +108,12 @@ export const convertToFloat = (lastTradedPrice: string) => {
   const decimalPart = parseInt(lastTradedPrice.slice(-2))
   return parseFloat(`${integerPart}.${decimalPart}`)
 }
+export const findOptionScripByToken = (
+  token: string,
+  trades: scripMasterResponse[],
+) =>
+  trades.find((trade: scripMasterResponse) => trade.token.localeCompare(token))
+export const findPositionByToken = (token: string, trades: Position[]) =>
+  trades.find((trade: Position) => trade.symboltoken.localeCompare(token))
+export const findScripByToken = (token: string, trades: Scrips[]) =>
+  trades.find((trade: Scrips) => trade.token.localeCompare(token))
