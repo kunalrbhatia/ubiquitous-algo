@@ -40,6 +40,7 @@ import { type Response } from 'express'
 import OrderStore from '../store/orderStore'
 const { SmartAPI, WebSocketV2 } = require('smartapi-javascript')
 const totp = require('totp-generator')
+let mtm = 0
 export const generateSmartSession = async (): Promise<ISmartApiData> => {
   const cred = DataStore.getInstance().getPostData()
   const smart_api = new SmartAPI({
@@ -181,15 +182,6 @@ export const fetchData = async (): Promise<scripMasterResponse[]> => {
     .get(SCRIPMASTER)
     .then((response: AxiosResponse) => {
       return _get(response, 'data', []) || []
-      // console.log(
-      //   `${ALGO}: response if script master api loaded and its length is ${acData.length}`
-      // );
-      // let scripMaster = acData.map((element, index) => {
-      //   return {
-      //     ...element,
-      //   };
-      // });
-      // return scripMaster;
     })
     .catch((evt: object) => {
       console.log(`${ALGO}: fetchData failed error below`)
@@ -207,11 +199,6 @@ export const getStocks = async ({
 }) => {
   await delay({ milliSeconds: DELAY })
   const scripMaster: scripMasterResponse[] = await fetchData()
-  // console.log(
-  //   `${ALGO}: scriptName: ${scriptName}, is scrip master an array: ${isArray(
-  //     scripMaster
-  //   )}, its length is: ${scripMaster.length}`
-  // );
   if (scriptName && isArray(scripMaster) && scripMaster.length > 0) {
     console.log(`${ALGO}: all check cleared getScrip call`)
     const filteredScrip = scripMaster.filter((scrip) => {
@@ -256,10 +243,8 @@ export const getOptionScrip = async ({ scrips }: { scrips: Scrips[] }) => {
     throw errorMessage
   }
 }
-
 const stopTrade = async ({ scrip }: { scrip: Position | null | undefined }) => {
   if (scrip) {
-    await delay({ milliSeconds: DELAY })
     await doOrder({
       tradingsymbol: scrip.tradingsymbol,
       symboltoken: scrip.symboltoken,
@@ -297,9 +282,9 @@ const checkExistingTrades = async ({
 export const runOrb = async ({ scrips }: runOrbType) => {
   console.log(`${ALGO}: getting scrip ...`)
   const scripsWithDetails = await getOptionScrip({ scrips })
-  console.log(`${ALGO}: fetched scrip: `, scripsWithDetails)
+  console.log(`${ALGO}: scrips fetched`)
   openWebsocket({ optionScrips: scripsWithDetails, scrips })
-  return { mtm: 0 }
+  return { mtm: mtm }
 }
 export const openWebsocket = async ({
   optionScrips,
@@ -319,23 +304,32 @@ export const openWebsocket = async ({
   const receiveTick = async (data: Tick) => {
     const orderData = OrderStore.getInstance().getPostData()
     if (orderData.hasOrderTaken && isObject(data)) {
+      console.log(`${ALGO}, position already exist`)
       const token = data.token
       const position = findPositionByToken(token, hasExistingTrades)
       const scrip = findScripByToken(token, scrips)
       const _token = position?.symboltoken || ''
       const unrealisedPnl = parseInt(position?.unrealised || '0')
+      mtm += unrealisedPnl
       const updatedMaxSl = updateMaxSl({
         mtm: unrealisedPnl,
         maxSl: scrip?.sl || 2000,
         trailSl: scrip?.tsl || 500,
       })
+      console.log(`${ALGO}, updatedMaxSl: ${updatedMaxSl}`)
       const isSameSymbol = token.localeCompare(_token) === 0
+      console.log(`${ALGO}, isSameSymbol: ${isSameSymbol}`)
       const isNegativeUnrealisedPnl = unrealisedPnl < 0
+      console.log(
+        `${ALGO}, isNegativeUnrealisedPnl: ${isNegativeUnrealisedPnl}`,
+      )
       const isGreaterThanSL = Math.abs(unrealisedPnl) > (scrip?.sl || 2000)
+      console.log(`${ALGO}, isGreaterThanSL: ${isGreaterThanSL}`)
       const isAfterTradingHours = isCurrentTimeGreater({
         hours: 15,
         minutes: 17,
       })
+      console.log(`${ALGO}, isAfterTradingHours: ${isAfterTradingHours}`)
       const shouldStopTrade =
         isSameSymbol &&
         ((isNegativeUnrealisedPnl && isGreaterThanSL) ||
@@ -345,14 +339,17 @@ export const openWebsocket = async ({
         stopTrade({ scrip: position })
       }
     } else if (isObject(data)) {
+      console.log(
+        `${ALGO}, no previous order checking conditions to place order`,
+      )
       const ltp = convertToFloat(data.last_traded_price)
       const scrip = findScripByToken(data.token, scrips)
-      console.log(`ltp: ${ltp}, scrip: ${scrip?.price}`)
       if (
         scrip &&
         scrip.token.localeCompare(data.token) &&
         ltp >= scrip.price
       ) {
+        console.log(`${ALGO}, conditions met, placing order`)
         const optionScrip = findOptionScripByToken(scrip.token, optionScrips)
         const orderData = await doOrder({
           tradingsymbol: scrip.name,
@@ -361,8 +358,8 @@ export const openWebsocket = async ({
           transactionType: TRANSACTION_TYPE_BUY,
           productType: 'INTRADAY',
         })
-        console.log(orderData)
         if (orderData.status) {
+          console.log(`${ALGO}, order success`)
           OrderStore.getInstance().setPostData({ hasOrderTaken: true })
         }
       }
