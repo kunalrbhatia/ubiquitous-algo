@@ -111,8 +111,8 @@ export const convertToFloat = (lastTradedPrice: string) => {
 export const findOptionScripByToken = (
   token: string,
   trades: scripMasterResponse[],
-) => trades.find((trade) => trade.token.localeCompare(token))
+) => trades.find((trade) => trade.token === token)
 export const findPositionByToken = (token: string, trades: Position[]) =>
-  trades.find((trade) => trade.symboltoken.localeCompare(token))
+  trades.find((trade) => trade.symboltoken === token)
 export const findScripByToken = (token: string, trades: Scrips[]) =>
-  trades.find((trade) => trade.token.localeCompare(token))
+  trades.find((trade) => trade.token === token)

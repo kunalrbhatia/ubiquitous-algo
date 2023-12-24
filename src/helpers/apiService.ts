@@ -359,8 +359,8 @@ export const openWebsocket = async ({
           transactionType: TRANSACTION_TYPE_BUY,
           productType: 'INTRADAY',
         })
+        console.log(`${ALGO}, order status `, orderData)
         if (orderData.status) {
-          console.log(`${ALGO}, order success`)
           OrderStore.getInstance().setPostData({ hasOrderTaken: true })
         }
       }
