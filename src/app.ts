@@ -89,6 +89,7 @@ app.post('/orb', async (req: Request, res: Response) => {
     setCred(req)
     let response = { mtm: -1 }
     const scrips: Scrips[] = req.body.scrips
+    console.log(`${ALGO}, scrips, `, scrips)
     log(`${ALGO}: calling isTradeAllowed function...`)
     const canTakeTrade = await isTradeAllowed()
     if (canTakeTrade) {

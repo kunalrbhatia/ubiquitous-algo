@@ -290,20 +290,33 @@ export const openWebsocket = async ({
   optionScrips,
   scrips,
 }: OpenWebsocketType) => {
+  console.log(`${ALGO}, openWebsocket... `)
+
   const smartApiData = SmartSession.getInstance().getPostData()
+  console.log(`${ALGO}, smartApiData, `, smartApiData)
   const cred = DataStore.getInstance().getPostData()
+  console.log(`${ALGO}, cred, `, cred)
+
   const hasExistingTrades = await checkExistingTrades({
     scrips: optionScrips,
   })
+  console.log(`${ALGO}, hasExistingTrades, `, hasExistingTrades)
+
   const web_socket = new WebSocketV2({
     jwttoken: smartApiData.jwtToken,
     apikey: cred.APIKEY,
     clientcode: cred.CLIENT_CODE,
     feedtype: smartApiData.feedToken,
   })
+  console.log(`${ALGO}, web_socket, `, web_socket)
+
   WebSocketStore.getInstance().setPostData(web_socket)
   const receiveTick = async (data: Tick) => {
+    console.log(`${ALGO}, receiveTick success... `)
+
     const orderData = OrderStore.getInstance().getPostData()
+    console.log(`${ALGO}, orderData, `, orderData)
+
     if (orderData.hasOrderTaken && isObject(data)) {
       console.log(`${ALGO}, position already exist`)
       const token = data.token
@@ -367,6 +380,8 @@ export const openWebsocket = async ({
     }
   }
   web_socket.connect().then(() => {
+    console.log(`${ALGO}, websocket connected... `)
+
     const tokens: string[] = optionScrips.map(
       (scrip: scripMasterResponse) => scrip.token,
     )
