@@ -392,6 +392,8 @@ export const openWebsocket = async ({
       exchangeType: 2,
       tokens,
     }
+    console.log(`${ALGO}, json_req, `, json_req)
+
     web_socket.fetchData(json_req)
     web_socket.on('tick', receiveTick)
   })
