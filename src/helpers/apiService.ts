@@ -390,7 +390,7 @@ export const openWebsocket = async ({
       action: 1,
       mode: 1,
       exchangeType: 2,
-      tokens,
+      tokens: tokens,
     }
     console.log(`${ALGO}, json_req, `, json_req)
 
