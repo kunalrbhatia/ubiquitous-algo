@@ -1,4 +1,4 @@
-import { get as _get, isArray } from 'lodash'
+import { get as _get, isArray, isObject } from 'lodash'
 import {
   type ISmartApiData,
   type LtpDataType,
@@ -26,6 +26,7 @@ import {
 } from './constants'
 import axios, { type AxiosResponse } from 'axios'
 import {
+  _atos,
   convertToFloat,
   delay,
   findOptionScripByToken,
@@ -44,7 +45,7 @@ const { SmartAPI } = require('smartapi-javascript')
 import WebSocket from 'ws'
 const totp = require('totp-generator')
 const Parser = require('binary-parser').Parser
-const mtm = 0
+let mtm = 0
 export const generateSmartSession = async (): Promise<ISmartApiData> => {
   const cred = DataStore.getInstance().getPostData()
   const smart_api = new SmartAPI({
@@ -290,25 +291,11 @@ export const runOrb = async ({ scrips }: runOrbType) => {
   openWebsocket({ optionScrips: scripsWithDetails, scrips })
   return { mtm: mtm }
 }
-function _atos(array: number[]) {
-  const newarray = []
-
-  for (let i = 0; i < array.length; i++) {
-    newarray.push(String.fromCharCode(array[i]))
-  }
-
-  let token = JSON.stringify(newarray.join(''))
-  token = token.split('\\u0000').join('')
-  token = token.split('"').join('')
-  console.log(token)
-  return token
-}
 export const openWebsocket = async ({
   optionScrips,
   scrips,
 }: OpenWebsocketType) => {
   console.log(`${ALGO}, openWebsocket... `)
-
   const smartApiData = SmartSession.getInstance().getPostData()
   console.log(`${ALGO}, smartApiData, `, smartApiData)
   const cred = DataStore.getInstance().getPostData()
@@ -317,14 +304,13 @@ export const openWebsocket = async ({
     scrips: optionScrips,
   })
   console.log(`${ALGO}, hasExistingTrades, `, hasExistingTrades)
-
   const socket = new WebSocket(
     `${STREAM_URL}?clientCode=${cred.CLIENT_CODE}&feedToken=${smartApiData.feedToken}&apiKey=${cred.APIKEY}`,
   )
-
+  WebSocketStore.getInstance().setPostData(socket)
   // Connection opened
-  socket.addEventListener('open', (event) => {
-    console.log('WebSocket connected')
+  socket.addEventListener('open', () => {
+    console.log(`${ALGO}: websocket connected.`)
     const tokens: string[] = optionScrips.map(
       (scrip: scripMasterResponse) => scrip.token,
     )
@@ -339,17 +325,10 @@ export const openWebsocket = async ({
     console.log(`${ALGO}, json_req, `, json_req)
     socket.send(JSON.stringify(json_req))
   })
-
   // Listen for messages from the server
-  socket.addEventListener('message', (event) => {
+  socket.addEventListener('message', async (event) => {
     const receivedData: ArrayBuffer = event.data as ArrayBuffer
     const responseBuffer = Buffer.from(receivedData)
-
-    const sequence = responseBuffer.readBigInt64LE(27)
-    const ltp = convertToFloat(responseBuffer.readInt32LE(43).toString())
-
-    console.log(`ltp value: ${ltp}, sequence no. ${sequence}`)
-
     const ltpi = new Parser()
       .endianness('little')
       .int8('subscription_mode', { formatter: toNumber })
@@ -362,110 +341,76 @@ export const openWebsocket = async ({
       .int64('sequence_number', { formatter: toNumber })
       .int64('exchange_timestamp', { formatter: toNumber })
       .int32('last_traded_price', { formatter: toNumber })
-    console.log(ltpi.parse(responseBuffer))
+    const data: Tick = ltpi.parse(responseBuffer) as Tick
+    const orderData = OrderStore.getInstance().getPostData()
+    if (orderData.hasOrderTaken && isObject(data)) {
+      console.log(`${ALGO}, position already exist`)
+      const token = data.token
+      const position = findPositionByToken(token, hasExistingTrades)
+      const scrip = findScripByToken(token, scrips)
+      const _token = position?.symboltoken || ''
+      const unrealisedPnl = parseInt(position?.unrealised || '0')
+      mtm += unrealisedPnl
+      const updatedMaxSl = updateMaxSl({
+        mtm: unrealisedPnl,
+        maxSl: scrip?.sl || 2000,
+        trailSl: scrip?.tsl || 500,
+      })
+      console.log(`${ALGO}, updatedMaxSl: ${updatedMaxSl}`)
+      const isSameSymbol = token.localeCompare(_token) === 0
+      console.log(`${ALGO}, isSameSymbol: ${isSameSymbol}`)
+      const isNegativeUnrealisedPnl = unrealisedPnl < 0
+      console.log(
+        `${ALGO}, isNegativeUnrealisedPnl: ${isNegativeUnrealisedPnl}`,
+      )
+      const isGreaterThanSL = Math.abs(unrealisedPnl) > (scrip?.sl || 2000)
+      console.log(`${ALGO}, isGreaterThanSL: ${isGreaterThanSL}`)
+      const isAfterTradingHours = isCurrentTimeGreater({
+        hours: 15,
+        minutes: 17,
+      })
+      console.log(`${ALGO}, isAfterTradingHours: ${isAfterTradingHours}`)
+      const shouldStopTrade =
+        isSameSymbol &&
+        ((isNegativeUnrealisedPnl && isGreaterThanSL) ||
+          unrealisedPnl < updatedMaxSl ||
+          isAfterTradingHours)
+      if (shouldStopTrade) {
+        stopTrade({ scrip: position })
+      }
+    } else if (isObject(data)) {
+      console.log(
+        `${ALGO}, no previous order checking conditions to place order`,
+      )
+      const ltp = convertToFloat(data.last_traded_price)
+      const scrip = findScripByToken(data.token, scrips)
+      if (
+        scrip &&
+        scrip.token.localeCompare(data.token) &&
+        ltp >= scrip.price
+      ) {
+        console.log(`${ALGO}, conditions met, placing order`)
+        const optionScrip = findOptionScripByToken(scrip.token, optionScrips)
+        const orderData = await doOrder({
+          tradingsymbol: scrip.name,
+          qty: optionScrip ? parseInt(optionScrip.lotsize) : 1,
+          symboltoken: scrip.token,
+          transactionType: TRANSACTION_TYPE_BUY,
+          productType: 'INTRADAY',
+        })
+        console.log(`${ALGO}, order status `, orderData)
+        if (orderData.status) {
+          OrderStore.getInstance().setPostData({ hasOrderTaken: true })
+        }
+      }
+    }
   })
   // Connection closed
-  socket.addEventListener('close', (event) => {
+  socket.addEventListener('close', () => {
     console.log('WebSocket connection closed')
   })
-
   // Connection error
   socket.addEventListener('error', (event) => {
     console.error('WebSocket connection error:', event)
   })
-
-  // const web_socket = new WebSocketV2({
-  //   jwttoken: smartApiData.jwtToken,
-  //   apikey: cred.APIKEY,
-  //   clientcode: cred.CLIENT_CODE,
-  //   feedtype: smartApiData.feedToken,
-  // })
-  // console.log(`${ALGO}, web_socket, `, web_socket)
-  // WebSocketStore.getInstance().setPostData(web_socket)
-  // const receiveTick = async (data: Tick) => {
-  //   console.log(`${ALGO}, receiveTick success... `)
-
-  //   const orderData = OrderStore.getInstance().getPostData()
-  //   console.log(`${ALGO}, orderData, `, orderData)
-
-  //   if (orderData.hasOrderTaken && isObject(data)) {
-  //     console.log(`${ALGO}, position already exist`)
-  //     const token = data.token
-  //     const position = findPositionByToken(token, hasExistingTrades)
-  //     const scrip = findScripByToken(token, scrips)
-  //     const _token = position?.symboltoken || ''
-  //     const unrealisedPnl = parseInt(position?.unrealised || '0')
-  //     mtm += unrealisedPnl
-  //     const updatedMaxSl = updateMaxSl({
-  //       mtm: unrealisedPnl,
-  //       maxSl: scrip?.sl || 2000,
-  //       trailSl: scrip?.tsl || 500,
-  //     })
-  //     console.log(`${ALGO}, updatedMaxSl: ${updatedMaxSl}`)
-  //     const isSameSymbol = token.localeCompare(_token) === 0
-  //     console.log(`${ALGO}, isSameSymbol: ${isSameSymbol}`)
-  //     const isNegativeUnrealisedPnl = unrealisedPnl < 0
-  //     console.log(
-  //       `${ALGO}, isNegativeUnrealisedPnl: ${isNegativeUnrealisedPnl}`,
-  //     )
-  //     const isGreaterThanSL = Math.abs(unrealisedPnl) > (scrip?.sl || 2000)
-  //     console.log(`${ALGO}, isGreaterThanSL: ${isGreaterThanSL}`)
-  //     const isAfterTradingHours = isCurrentTimeGreater({
-  //       hours: 15,
-  //       minutes: 17,
-  //     })
-  //     console.log(`${ALGO}, isAfterTradingHours: ${isAfterTradingHours}`)
-  //     const shouldStopTrade =
-  //       isSameSymbol &&
-  //       ((isNegativeUnrealisedPnl && isGreaterThanSL) ||
-  //         unrealisedPnl < updatedMaxSl ||
-  //         isAfterTradingHours)
-  //     if (shouldStopTrade) {
-  //       stopTrade({ scrip: position })
-  //     }
-  //   } else if (isObject(data)) {
-  //     console.log(
-  //       `${ALGO}, no previous order checking conditions to place order`,
-  //     )
-  //     const ltp = convertToFloat(data.last_traded_price)
-  //     const scrip = findScripByToken(data.token, scrips)
-  //     if (
-  //       scrip &&
-  //       scrip.token.localeCompare(data.token) &&
-  //       ltp >= scrip.price
-  //     ) {
-  //       console.log(`${ALGO}, conditions met, placing order`)
-  //       const optionScrip = findOptionScripByToken(scrip.token, optionScrips)
-  //       const orderData = await doOrder({
-  //         tradingsymbol: scrip.name,
-  //         qty: optionScrip ? parseInt(optionScrip.lotsize) : 1,
-  //         symboltoken: scrip.token,
-  //         transactionType: TRANSACTION_TYPE_BUY,
-  //         productType: 'INTRADAY',
-  //       })
-  //       console.log(`${ALGO}, order status `, orderData)
-  //       if (orderData.status) {
-  //         OrderStore.getInstance().setPostData({ hasOrderTaken: true })
-  //       }
-  //     }
-  //   }
-  // }
-  // web_socket.connect().then(() => {
-  //   console.log(`${ALGO}, websocket connected... `)
-
-  //   const tokens: string[] = optionScrips.map(
-  //     (scrip: scripMasterResponse) => scrip.token,
-  //   )
-  //   const json_req = {
-  //     correlationID: 'abcde12345',
-  //     action: 1,
-  //     mode: 1,
-  //     exchangeType: 2,
-  //     tokens: tokens,
-  //   }
-  //   console.log(`${ALGO}, json_req, `, json_req)
-
-  //   web_socket.fetchData(json_req)
-  //   web_socket.on('tick', receiveTick)
-  // })
 }

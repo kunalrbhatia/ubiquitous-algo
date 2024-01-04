@@ -119,3 +119,16 @@ export const findScripByToken = (token: string, trades: Scrips[]) =>
 export const toNumber = (number: number) => {
   return number.toString()
 }
+export const _atos = (array: number[]) => {
+  const newarray = []
+
+  for (let i = 0; i < array.length; i++) {
+    newarray.push(String.fromCharCode(array[i]))
+  }
+
+  let token = JSON.stringify(newarray.join(''))
+  token = token.split('\\u0000').join('')
+  token = token.split('"').join('')
+  console.log(token)
+  return token
+}
