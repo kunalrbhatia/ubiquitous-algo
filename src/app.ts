@@ -92,11 +92,11 @@ app.post('/orb', async (req: Request, res: Response) => {
     console.log(`${ALGO}, scrips, `, scrips)
     log(`${ALGO}: calling isTradeAllowed function...`)
     const canTakeTrade = await isTradeAllowed()
-    if (canTakeTrade) {
-      response = await runOrb({
-        scrips,
-      })
-    }
+    // if (canTakeTrade) {
+    response = await runOrb({
+      scrips,
+    })
+    // }
     log(`\n${ALGO}: mtm object `, response)
     res.send(response)
   } catch (err) {

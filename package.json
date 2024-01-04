@@ -35,6 +35,7 @@
     "@types/node-cron": "^3.0.8",
     "@types/supertest": "^2.0.12",
     "@types/totp-generator": "^0.0.8",
+    "@types/ws": "^8.5.10",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
     "babel-plugin-transform-remove-console": "^6.9.4",

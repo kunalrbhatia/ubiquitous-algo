@@ -116,3 +116,6 @@ export const findPositionByToken = (token: string, trades: Position[]) =>
   trades.find((trade) => trade.symboltoken === token)
 export const findScripByToken = (token: string, trades: Scrips[]) =>
   trades.find((trade) => trade.token === token)
+export const toNumber = (number: number) => {
+  return number.toString()
+}
