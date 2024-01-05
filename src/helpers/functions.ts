@@ -129,6 +129,5 @@ export const _atos = (array: number[]) => {
   let token = JSON.stringify(newarray.join(''))
   token = token.split('\\u0000').join('')
   token = token.split('"').join('')
-  console.log(token)
   return token
 }

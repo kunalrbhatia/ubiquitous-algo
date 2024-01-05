@@ -384,6 +384,9 @@ export const openWebsocket = async ({
       )
       const ltp = convertToFloat(data.last_traded_price)
       const scrip = findScripByToken(data.token, scrips)
+      console.log(
+        `${ALGO}, ltp: ${ltp}, scrip: ${scrip?.name}, price: ${scrip?.price}`,
+      )
       if (
         scrip &&
         scrip.token.localeCompare(data.token) &&
