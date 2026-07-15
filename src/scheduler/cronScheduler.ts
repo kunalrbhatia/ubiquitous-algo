@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import logger from '../logging/logger';
 import sessionManager from '../auth/session';
 import instrumentManager from '../instruments/instrumentManager';
@@ -14,6 +15,7 @@ import path from 'path';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+dayjs.extend(customParseFormat);
 
 dayjs.tz.setDefault('Asia/Kolkata');
 
