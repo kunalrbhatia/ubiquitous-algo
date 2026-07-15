@@ -19,6 +19,26 @@ dayjs.extend(customParseFormat);
 
 dayjs.tz.setDefault('Asia/Kolkata');
 
+const MONTH_MAP: Record<string, number> = {
+  JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+  JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11
+};
+
+export function parseExpiryDate(exp: string): dayjs.Dayjs {
+  const match = exp.match(/^(\d{2})([A-Z]{3})(\d{4})$/);
+  if (!match) {
+    return dayjs.tz('invalid-date', 'Asia/Kolkata');
+  }
+  const day = parseInt(match[1], 10);
+  const monthStr = match[2];
+  const year = parseInt(match[3], 10);
+  const month = MONTH_MAP[monthStr];
+  if (month === undefined) {
+    return dayjs.tz('invalid-date', 'Asia/Kolkata');
+  }
+  return dayjs.tz(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`, 'Asia/Kolkata');
+}
+
 export function getLastTuesdayOfMonth(
   year: number,
   month: number,
@@ -34,8 +54,8 @@ export function getLastTuesdayOfMonth(
     const formattedDate = date.format('DDMMMYYYY').toUpperCase();
     if (!activeExpiries.includes(formattedDate)) {
       const possibleExpiries = activeExpiries
-        .map((exp) => dayjs(exp, 'DDMMMYYYY').tz('Asia/Kolkata'))
-        .filter((d) => d.year() === year && d.month() === month - 1 && d.isBefore(date))
+        .map((exp) => parseExpiryDate(exp))
+        .filter((d) => d.isValid() && d.year() === year && d.month() === month - 1 && d.isBefore(date))
         .sort((a, b) => b.diff(a));
 
       if (possibleExpiries.length > 0) {
