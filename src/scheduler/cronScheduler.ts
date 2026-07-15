@@ -20,8 +20,18 @@ dayjs.extend(customParseFormat);
 dayjs.tz.setDefault('Asia/Kolkata');
 
 const MONTH_MAP: Record<string, number> = {
-  JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
-  JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11
+  JAN: 0,
+  FEB: 1,
+  MAR: 2,
+  APR: 3,
+  MAY: 4,
+  JUN: 5,
+  JUL: 6,
+  AUG: 7,
+  SEP: 8,
+  OCT: 9,
+  NOV: 10,
+  DEC: 11,
 };
 
 export function parseExpiryDate(exp: string): dayjs.Dayjs {
@@ -36,7 +46,10 @@ export function parseExpiryDate(exp: string): dayjs.Dayjs {
   if (month === undefined) {
     return dayjs.tz('invalid-date', 'Asia/Kolkata');
   }
-  return dayjs.tz(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`, 'Asia/Kolkata');
+  return dayjs.tz(
+    `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+    'Asia/Kolkata',
+  );
 }
 
 export function getLastTuesdayOfMonth(
@@ -44,7 +57,9 @@ export function getLastTuesdayOfMonth(
   month: number,
   activeExpiries?: string[],
 ): dayjs.Dayjs {
-  let date = dayjs.tz(`${year}-${String(month).padStart(2, '0')}-01`, 'Asia/Kolkata').endOf('month');
+  let date = dayjs
+    .tz(`${year}-${String(month).padStart(2, '0')}-01`, 'Asia/Kolkata')
+    .endOf('month');
   while (date.day() !== 2) {
     // 2 = Tuesday
     date = date.subtract(1, 'day');
@@ -55,7 +70,9 @@ export function getLastTuesdayOfMonth(
     if (!activeExpiries.includes(formattedDate)) {
       const possibleExpiries = activeExpiries
         .map((exp) => parseExpiryDate(exp))
-        .filter((d) => d.isValid() && d.year() === year && d.month() === month - 1 && d.isBefore(date))
+        .filter(
+          (d) => d.isValid() && d.year() === year && d.month() === month - 1 && d.isBefore(date),
+        )
         .sort((a, b) => b.diff(a));
 
       if (possibleExpiries.length > 0) {
