@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+logs/
+data/
+.env
+.paper
+.kill
