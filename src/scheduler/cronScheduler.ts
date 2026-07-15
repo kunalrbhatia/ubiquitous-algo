@@ -34,7 +34,7 @@ export function getLastTuesdayOfMonth(
     const formattedDate = date.format('DDMMMYYYY').toUpperCase();
     if (!activeExpiries.includes(formattedDate)) {
       const possibleExpiries = activeExpiries
-        .map((exp) => dayjs.tz(exp, 'DDMMMYYYY', 'Asia/Kolkata'))
+        .map((exp) => dayjs(exp, 'DDMMMYYYY').tz('Asia/Kolkata'))
         .filter((d) => d.year() === year && d.month() === month - 1 && d.isBefore(date))
         .sort((a, b) => b.diff(a));
 
@@ -319,7 +319,7 @@ export class CronScheduler {
 
         if (fileBase === todayStr) continue;
 
-        const fileDate = dayjs.tz(fileBase, 'YYYY-MM-DD', 'Asia/Kolkata');
+        const fileDate = dayjs(fileBase, 'YYYY-MM-DD').tz('Asia/Kolkata');
         if (fileDate.isValid() && fileDate.isBefore(dayjs.tz().subtract(1, 'month'))) {
           // logs retained for 1 month
           fs.unlinkSync(filePath);
