@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import {
   CronScheduler,
   getLastTuesdayOfMonth,
@@ -17,6 +18,7 @@ import fs from 'fs';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+dayjs.extend(customParseFormat);
 
 jest.mock('node-cron');
 jest.mock('../src/auth/session');
