@@ -22,10 +22,7 @@ export function getLastTuesdayOfMonth(
   month: number,
   activeExpiries?: string[],
 ): dayjs.Dayjs {
-  let date = dayjs()
-    .year(year)
-    .month(month - 1)
-    .endOf('month');
+  let date = dayjs.tz(`${year}-${String(month).padStart(2, '0')}-01`, 'Asia/Kolkata').endOf('month');
   while (date.day() !== 2) {
     // 2 = Tuesday
     date = date.subtract(1, 'day');
@@ -35,7 +32,7 @@ export function getLastTuesdayOfMonth(
     const formattedDate = date.format('DDMMMYYYY').toUpperCase();
     if (!activeExpiries.includes(formattedDate)) {
       const possibleExpiries = activeExpiries
-        .map((exp) => dayjs(exp, 'DDMMMYYYY'))
+        .map((exp) => dayjs.tz(exp, 'DDMMMYYYY', 'Asia/Kolkata'))
         .filter((d) => d.year() === year && d.month() === month - 1 && d.isBefore(date))
         .sort((a, b) => b.diff(a));
 
@@ -311,7 +308,7 @@ export class CronScheduler {
 
     if (fs.existsSync(logDir)) {
       const files = fs.readdirSync(logDir);
-      const todayStr = dayjs().format('YYYY-MM-DD');
+      const todayStr = dayjs.tz().format('YYYY-MM-DD');
 
       for (const file of files) {
         if (!file.endsWith('.log')) continue;
@@ -320,8 +317,8 @@ export class CronScheduler {
 
         if (fileBase === todayStr) continue;
 
-        const fileDate = dayjs(fileBase, 'YYYY-MM-DD');
-        if (fileDate.isValid() && fileDate.isBefore(dayjs().subtract(1, 'month'))) {
+        const fileDate = dayjs.tz(fileBase, 'YYYY-MM-DD', 'Asia/Kolkata');
+        if (fileDate.isValid() && fileDate.isBefore(dayjs.tz().subtract(1, 'month'))) {
           // logs retained for 1 month
           fs.unlinkSync(filePath);
           logger.info(`Deleted old daily log file: ${filePath}`);
