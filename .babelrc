@@ -1,6 +1,0 @@
-{
-  "presets": ["@babel/preset-env","@babel/preset-flow","@babel/preset-typescript"],
-  "plugins": [
-    ["transform-remove-console", { "exclude": ["error", "warn"] }]
-  ]
-}
