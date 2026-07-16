@@ -13,7 +13,8 @@ const config: Config = {
     '/src/index.ts',
     '/src/execution/executionManager.ts',
     '/src/scheduler/cronScheduler.ts',
-    '/src/instruments/instrumentManager.ts'
+    '/src/instruments/instrumentManager.ts',
+    '/src/scripts/'
   ],
   coverageThreshold: {
     global: {
