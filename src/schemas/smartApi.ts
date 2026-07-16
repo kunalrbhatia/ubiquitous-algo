@@ -151,6 +151,7 @@ export const MarginCalculatorResponseSchema = z.object({
   data: z
     .object({
       totalMargin: z.coerce.number(),
+      totalMarginRequired: z.coerce.number().optional(),
       marginUtilized: z.coerce.number().optional(), // standard response field
       netMaxMargin: z.coerce.number().optional(),
     })
