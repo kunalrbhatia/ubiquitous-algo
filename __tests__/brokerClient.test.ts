@@ -148,13 +148,14 @@ describe('BrokerClient', () => {
     expect(margin).toBe(380000);
   });
 
-  test('getMarginUtilized falls back to totalMargin if marginUtilized is absent', async () => {
+  test('getMarginUtilized falls back to totalMarginRequired if marginUtilized is absent', async () => {
     const mockMarginRes = {
       status: true,
       message: 'SUCCESS',
       errorcode: '0000',
       data: {
-        totalMargin: 400000,
+        totalMargin: 0,
+        totalMarginRequired: 400000,
       },
     };
     (httpClient.request as jest.Mock).mockResolvedValueOnce(mockMarginRes);
@@ -165,6 +166,23 @@ describe('BrokerClient', () => {
     expect(margin).toBe(400000);
   });
 
+  test('getMarginUtilized falls back to 0 if both marginUtilized and totalMarginRequired are absent', async () => {
+    const mockMarginRes = {
+      status: true,
+      message: 'SUCCESS',
+      errorcode: '0000',
+      data: {
+        totalMargin: 0,
+      },
+    };
+    (httpClient.request as jest.Mock).mockResolvedValueOnce(mockMarginRes);
+
+    const margin = await client.getMarginUtilized([
+      { exchange: 'NFO', symboltoken: '123', quantity: 50, action: 'BUY' },
+    ]);
+    expect(margin).toBe(0);
+  });
+
   test('getMarginUtilized throws on status false and uses fallback', async () => {
     (httpClient.request as jest.Mock).mockResolvedValueOnce({
       status: false,
@@ -173,7 +191,7 @@ describe('BrokerClient', () => {
     });
 
     const margin = await client.getMarginUtilized([]);
-    expect(margin).toBe(450000);
+    expect(margin).toBe(130000);
   });
 
   test('getMarketData returns ltp, bid, and ask', async () => {

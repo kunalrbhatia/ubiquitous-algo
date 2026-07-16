@@ -300,11 +300,12 @@ export class BrokerClient implements IBrokerClient {
     // Typically: { positions: [ { exchange, symboltoken, quantity, transactiontype, price, producttype } ] }
     const positions = basket.map((leg) => ({
       exchange: leg.exchange,
-      symboltoken: leg.symboltoken,
-      quantity: leg.quantity,
-      transactiontype: leg.action,
-      price: 0, // LTP or 0
-      producttype: 'CARRYFORWARD',
+      token: leg.symboltoken,
+      qty: leg.quantity,
+      tradeType: leg.action,
+      price: 0,
+      productType: 'CARRYFORWARD',
+      orderType: 'MARKET',
     }));
 
     const payload = { positions };
@@ -321,14 +322,14 @@ export class BrokerClient implements IBrokerClient {
         throw new Error(`Margin calculation failed: ${parsed.message}`);
       }
 
-      // Return marginUtilized if present, or totalMargin as fallback
-      return parsed.data.marginUtilized ?? parsed.data.totalMargin;
+      // Return marginUtilized if present, or totalMarginRequired as fallback
+      return parsed.data.marginUtilized ?? parsed.data.totalMarginRequired ?? 0;
     } catch (error: unknown) {
       /* istanbul ignore next */
       const msg = error instanceof Error ? error.message : String(error);
       logger.error(`Error calculating batch margin: ${msg}. Returning fallback margin.`);
       // Return a reasonable fallback margin if API fails (e.g. 1.5 Lakhs per calendar pair * 3)
-      return 450000;
+      return 130000;
     }
   }
 
