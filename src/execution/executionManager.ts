@@ -7,7 +7,6 @@ import brokerClient, { PlaceOrderParams } from './brokerClient';
 import positionsStore from '../positions/positionsStore';
 import { StrategyLeg } from '../strategy/strategyManager';
 import { OrderRecord, MonthlyPosition } from '../schemas/smartApi';
-import smartStream from './smartStream';
 
 const OPTION_TICK_SIZE = 0.05;
 
@@ -86,11 +85,6 @@ export class ExecutionManager implements IExecutionManager {
     };
 
     positionsStore.writePosition(underlying, month, isPaper, position);
-
-    // Subscribe SmartStream to the newly opened positions
-    const tokens = executedOrders.map((o) => o.symboltoken);
-    smartStream.subscribe(tokens);
-    logger.info(`Subscribed SmartStream to new position tokens: ${tokens.join(', ')}`);
 
     await notifier.send(
       `✅ ENTRY COMPLETE [${modeStr}] for ${underlying} Spread. Margin Utilized: ₹${marginUtilized.toLocaleString()}`,
@@ -474,8 +468,6 @@ export class ExecutionManager implements IExecutionManager {
     pos.realizedPnl = totalPnl;
     positionsStore.writePosition(underlying, month, isPaper, pos);
 
-    smartStream.disconnect();
-
     await notifier.send(
       `📉 EXIT COMPLETE [${modeStr}] for ${underlying} month ${month}. Realized P&L: ₹${totalPnl.toLocaleString()}`,
     );
@@ -601,13 +593,7 @@ export class ExecutionManager implements IExecutionManager {
     let currentPnl = 0;
     for (const leg of pos.orders) {
       try {
-        let ltp = smartStream.getCachedLtp(leg.symboltoken);
-        if (ltp === null) {
-          logger.info(
-            `LTP for ${leg.tradingsymbol} not found in SmartStream cache. Falling back to REST API.`,
-          );
-          ltp = await brokerClient.getLtp(leg.exchange, leg.tradingsymbol, leg.symboltoken);
-        }
+        const ltp = await brokerClient.getLtp(leg.exchange, leg.tradingsymbol, leg.symboltoken);
         if (leg.transactiontype === 'BUY') {
           currentPnl += (ltp - leg.price) * leg.quantity;
         } else {
@@ -621,22 +607,28 @@ export class ExecutionManager implements IExecutionManager {
 
     logger.info(`Current unrealized P&L for ${underlying}: ₹${currentPnl.toLocaleString()}`);
 
-    // If cumulative loss exceeds 1.1% of the margin utilized, exit immediately
-    const stoplossThreshold = -0.011 * pos.marginUtilized;
-    // If cumulative profit exceeds 1.5% of the margin utilized, exit immediately
-    const profitTargetThreshold = 0.015 * pos.marginUtilized;
+    // If cumulative loss exceeds 1.5% of the margin utilized, exit immediately
+    const stoplossThreshold = -0.015 * pos.marginUtilized;
+    // If cumulative profit exceeds 2.0% of the margin utilized, exit immediately
+    const profitTargetThreshold = 0.02 * pos.marginUtilized;
+
+    // Update position JSON with current mtm and unrealizedPnl
+    pos.unrealizedPnl = currentPnl;
+    pos.mtm = currentPnl;
+    positionsStore.writePosition(underlying, month, isPaper, pos);
 
     logger.info(
-      `[${underlying}] Stoploss threshold: ₹${stoplossThreshold.toLocaleString()} (1.1% of ₹${pos.marginUtilized.toLocaleString()})`,
+      `[${underlying}] Stoploss threshold: ₹${stoplossThreshold.toLocaleString()} (1.5% of ₹${pos.marginUtilized.toLocaleString()})`,
     );
     logger.info(
-      `[${underlying}] Profit target threshold: ₹${profitTargetThreshold.toLocaleString()} (1.5% of ₹${pos.marginUtilized.toLocaleString()})`,
+      `[${underlying}] Profit target threshold: ₹${profitTargetThreshold.toLocaleString()} (2.0% of ₹${pos.marginUtilized.toLocaleString()})`,
     );
 
     if (currentPnl <= stoplossThreshold) {
       logger.warn(
         `Stoploss breached for ${underlying}! Current P&L (₹${currentPnl.toLocaleString()}) <= threshold (₹${stoplossThreshold.toLocaleString()})`,
       );
+
       await notifier.send(
         `🚨 STOPLOSS BREACHED [${isPaper ? 'PAPER' : 'LIVE'}] for ${underlying}: P&L is ₹${currentPnl.toLocaleString()}. Unwinding positions...`,
       );
@@ -655,6 +647,7 @@ export class ExecutionManager implements IExecutionManager {
       logger.info(
         `Profit target reached for ${underlying}! Current P&L (₹${currentPnl.toLocaleString()}) >= threshold (₹${profitTargetThreshold.toLocaleString()})`,
       );
+
       await notifier.send(
         `🎉 PROFIT TARGET REACHED [${isPaper ? 'PAPER' : 'LIVE'}] for ${underlying}: P&L is ₹${currentPnl.toLocaleString()}. Unwinding positions to lock in gains...`,
       );

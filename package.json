@@ -1,7 +1,7 @@
 {
   "name": "ratio-double-calendar-daemon",
   "version": "1.0.0",
-  "description": "Ratio Double Calendar Spread Option Strategy Daemon using Angel One SmartAPI",
+  "description": "Banknifty Monthly Calendar Spread Option Strategy Daemon using Angel One SmartAPI",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -25,7 +25,6 @@
     "lodash": "^4.17.21",
     "node-cron": "^3.0.3",
     "winston": "^3.12.0",
-    "ws": "^8.21.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
@@ -33,7 +32,6 @@
     "@types/lodash": "^4.14.202",
     "@types/node": "^20.11.24",
     "@types/node-cron": "^3.0.11",
-    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
     "eslint": "^8.57.0",

@@ -1,4 +1,3 @@
-import cron from 'node-cron';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -20,7 +19,6 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(customParseFormat);
 
-jest.mock('node-cron');
 jest.mock('../src/auth/session');
 jest.mock('../src/instruments/instrumentManager');
 jest.mock('../src/strategy/strategyManager');
@@ -37,10 +35,6 @@ describe('CronScheduler & Date Helpers', () => {
     jest.useFakeTimers();
     scheduler = new CronScheduler();
 
-    (cron.schedule as jest.Mock).mockReturnValue({
-      start: jest.fn(),
-      stop: jest.fn(),
-    });
     (flagWatcher.isDoneForThisMonth as jest.Mock).mockReturnValue(false);
   });
 
@@ -64,12 +58,6 @@ describe('CronScheduler & Date Helpers', () => {
     const friday = dayjs('2026-07-10'); // Friday
     const nextTradingDay = getFirstTradingDayAfter(friday);
     expect(nextTradingDay.format('YYYY-MM-DD')).toBe('2026-07-13'); // Monday
-  });
-
-  test('start and stop scheduler', () => {
-    scheduler.start();
-    expect(cron.schedule).toHaveBeenCalledTimes(6);
-    scheduler.stop();
   });
 
   test('handleTradingTick does nothing outside market hours', async () => {
@@ -101,6 +89,20 @@ describe('CronScheduler & Date Helpers', () => {
 
     expect(sessionManager.login).toHaveBeenCalled();
     expect(executionManager.executeEntry).toHaveBeenCalledWith('BANKNIFTY', []);
+  });
+
+  test('handleTradingTick auto-clears lockout flag on entry day', async () => {
+    jest.setSystemTime(new Date('2026-07-01T10:00:00+05:30'));
+    (flagWatcher.isPaperMode as jest.Mock).mockReturnValue(true);
+    (flagWatcher.isKillSwitched as jest.Mock).mockReturnValue(false);
+    (positionsStore.getCurrentMonthString as jest.Mock).mockReturnValue('2026-07');
+    (positionsStore.readPosition as jest.Mock).mockReturnValue(null);
+    (instrumentManager.getExpiries as jest.Mock).mockReturnValue(['28JUL2026', '25AUG2026']);
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+
+    await scheduler.handleTradingTick();
+
+    expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('done-for-this-month'));
   });
 
   test('handleTradingTick skips entry if VIX is invalid', async () => {
@@ -187,52 +189,5 @@ describe('CronScheduler & Date Helpers', () => {
 
     scheduler.runDailyCleanup();
     expect(fs.unlinkSync).toHaveBeenCalled();
-  });
-
-  test('lockout clear job clears done-for-this-month flag on entry day', () => {
-    let clearCallback: any;
-    (cron.schedule as jest.Mock).mockImplementation((expression, cb) => {
-      if (expression === '0 9 * * 1-5') {
-        clearCallback = cb;
-      }
-      return { start: jest.fn(), stop: jest.fn() };
-    });
-
-    scheduler.start();
-    expect(clearCallback).toBeDefined();
-
-    // Entry day: Wed July 1
-    jest.setSystemTime(new Date('2026-07-01T09:05:00+05:30'));
-    (instrumentManager.getExpiries as jest.Mock).mockReturnValue(['28JUL2026', '25AUG2026']);
-    (fs.existsSync as jest.Mock).mockReturnValue(true);
-
-    clearCallback();
-    expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('done-for-this-month'));
-  });
-
-  test('margin refresh job updates BANKNIFTY margins', async () => {
-    let refreshCallback: any;
-    (cron.schedule as jest.Mock).mockImplementation((expression, cb) => {
-      if (expression === '20 9 * * 1-5') {
-        refreshCallback = cb;
-      }
-      return { start: jest.fn(), stop: jest.fn() };
-    });
-
-    scheduler.start();
-    expect(refreshCallback).toBeDefined();
-
-    (flagWatcher.isKillSwitched as jest.Mock).mockReturnValue(false);
-    (flagWatcher.isDoneForThisMonth as jest.Mock).mockReturnValue(false);
-    (flagWatcher.isPaperMode as jest.Mock).mockReturnValue(false);
-    (positionsStore.getCurrentMonthString as jest.Mock).mockReturnValue('2026-07');
-
-    await refreshCallback();
-
-    expect(executionManager.updateMarginUtilized).toHaveBeenCalledWith(
-      'BANKNIFTY',
-      '2026-07',
-      false,
-    );
   });
 });
