@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import logger from '../logging/logger';
-import notifier from '../notify/notifier';
 import flagWatcher from '../flags/flagWatcher';
 import brokerClient, { PlaceOrderParams } from './brokerClient';
 import positionsStore from '../positions/positionsStore';
@@ -41,9 +40,6 @@ export class ExecutionManager implements IExecutionManager {
       const order = await this.placeAndConfirmOrder(leg, isPaper);
       if (!order) {
         logger.error(`Failed to execute buy leg ${leg.tradingsymbol}. Aborting entry sequence.`);
-        await notifier.send(
-          `🚨 ENTRY ABORTED [${modeStr}]: Failed to fill buy leg ${leg.tradingsymbol}.`,
-        );
         // Rollback any executed buy legs
         await this.rollbackOrders(executedOrders, isPaper);
         return false;
@@ -56,9 +52,6 @@ export class ExecutionManager implements IExecutionManager {
       const order = await this.placeAndConfirmOrder(leg, isPaper);
       if (!order) {
         logger.error(`Failed to execute sell leg ${leg.tradingsymbol}. Aborting entry sequence.`);
-        await notifier.send(
-          `🚨 ENTRY FAILURE [${modeStr}]: Failed to fill sell leg ${leg.tradingsymbol}. Manual intervention required!`,
-        );
         // Note: Do NOT automatically roll back sells, but keep what is done and notify
         return false;
       }
@@ -86,9 +79,6 @@ export class ExecutionManager implements IExecutionManager {
 
     positionsStore.writePosition(underlying, month, isPaper, position);
 
-    await notifier.send(
-      `✅ ENTRY COMPLETE [${modeStr}] for ${underlying} Spread. Margin Utilized: ₹${marginUtilized.toLocaleString()}`,
-    );
     return true;
   }
 
@@ -292,9 +282,6 @@ export class ExecutionManager implements IExecutionManager {
     let orderid = repriceRes.orderid;
 
     if (!orderid) {
-      await notifier.send(
-        `⚠️ ${leg.tradingsymbol} unfilled at capped slippage — sweeping at MARKET. Check fill quality manually.`,
-      );
       logger.warn(
         `Limit reprice exhausted for entry leg ${leg.tradingsymbol}. Sweeping at MARKET.`,
       );
@@ -468,9 +455,6 @@ export class ExecutionManager implements IExecutionManager {
     pos.realizedPnl = totalPnl;
     positionsStore.writePosition(underlying, month, isPaper, pos);
 
-    await notifier.send(
-      `📉 EXIT COMPLETE [${modeStr}] for ${underlying} month ${month}. Realized P&L: ₹${totalPnl.toLocaleString()}`,
-    );
     return exitSuccess;
   }
 
@@ -523,9 +507,6 @@ export class ExecutionManager implements IExecutionManager {
     let orderid = repriceRes.orderid;
 
     if (!orderid) {
-      await notifier.send(
-        `⚠️ ${entryOrder.tradingsymbol} unfilled at capped slippage — sweeping at MARKET. Check fill quality manually.`,
-      );
       logger.warn(
         `Limit reprice exhausted for exit leg ${entryOrder.tradingsymbol}. Sweeping at MARKET.`,
       );
@@ -629,10 +610,6 @@ export class ExecutionManager implements IExecutionManager {
         `Stoploss breached for ${underlying}! Current P&L (₹${currentPnl.toLocaleString()}) <= threshold (₹${stoplossThreshold.toLocaleString()})`,
       );
 
-      await notifier.send(
-        `🚨 STOPLOSS BREACHED [${isPaper ? 'PAPER' : 'LIVE'}] for ${underlying}: P&L is ₹${currentPnl.toLocaleString()}. Unwinding positions...`,
-      );
-
       const success = await this.executeExit(underlying, month, isPaper, true);
       if (success) {
         // Set skip state for rest of month
@@ -646,10 +623,6 @@ export class ExecutionManager implements IExecutionManager {
     } else if (currentPnl >= profitTargetThreshold) {
       logger.info(
         `Profit target reached for ${underlying}! Current P&L (₹${currentPnl.toLocaleString()}) >= threshold (₹${profitTargetThreshold.toLocaleString()})`,
-      );
-
-      await notifier.send(
-        `🎉 PROFIT TARGET REACHED [${isPaper ? 'PAPER' : 'LIVE'}] for ${underlying}: P&L is ₹${currentPnl.toLocaleString()}. Unwinding positions to lock in gains...`,
       );
 
       const success = await this.executeExit(underlying, month, isPaper);
