@@ -5,7 +5,6 @@ import { calculateDelta } from '../src/strategy/blackScholes';
 
 jest.mock('../src/execution/brokerClient');
 jest.mock('../src/instruments/instrumentManager');
-jest.mock('../src/notify/notifier');
 jest.mock('../src/strategy/blackScholes');
 jest.mock('../src/logging/logger');
 

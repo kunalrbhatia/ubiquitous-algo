@@ -66,7 +66,6 @@ The strategy consists of a 4-leg options basket:
 │   ├── flags/                  # paper/kill/done-for-this-month filesystem watchers
 │   ├── http/                   # HTTP client wrapper with AbortController timeout & retry
 │   ├── logging/                # Daily rotating winston logs
-│   ├── notify/                 # Telegram and Slack alert notifications
 │   ├── positions/              # positionsStore JSON reader/writer (keyed by month)
 │   ├── schemas/                # Zod schemas validating API payloads & inputs
 │   └── index.ts                # Strategy execution entrypoint (run-and-exit tick)
@@ -89,7 +88,7 @@ Create a `.env` file in the root directory:
 ```bash
 cp .env.example .env
 ```
-Fill in your Angel One SmartAPI credentials and Telegram/Slack credentials.
+Fill in your Angel One SmartAPI credentials.
 
 ### 3. Execution Commands
 - **Run in Development (Single Tick):**

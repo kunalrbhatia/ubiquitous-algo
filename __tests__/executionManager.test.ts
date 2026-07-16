@@ -2,7 +2,6 @@ import { ExecutionManager } from '../src/execution/executionManager';
 import brokerClient from '../src/execution/brokerClient';
 import flagWatcher from '../src/flags/flagWatcher';
 import positionsStore from '../src/positions/positionsStore';
-import notifier from '../src/notify/notifier';
 import { StrategyLeg } from '../src/strategy/strategyManager';
 
 import fs from 'fs';
@@ -10,7 +9,6 @@ import fs from 'fs';
 jest.mock('../src/execution/brokerClient');
 jest.mock('../src/flags/flagWatcher');
 jest.mock('../src/positions/positionsStore');
-jest.mock('../src/notify/notifier');
 jest.mock('../src/instruments/instrumentManager');
 jest.mock('fs');
 
@@ -136,7 +134,6 @@ describe('ExecutionManager', () => {
     const success = await executionManager.executeEntry('NIFTY', mockBasket);
 
     expect(success).toBe(false);
-    expect(notifier.send).toHaveBeenCalled();
   });
 
   test('executeEntry aborts if sell leg fails', async () => {
@@ -498,7 +495,6 @@ describe('ExecutionManager', () => {
     const result = await (executionManager as any).placeAndConfirmOrder(mockBasket[0], false);
     expect(result).not.toBeNull();
     expect(result?.orderid).toBe('ORD-MARKET');
-    expect(notifier.send).toHaveBeenCalled();
   });
 
   test('reprice handles cancelOrder failure and detects fill', async () => {

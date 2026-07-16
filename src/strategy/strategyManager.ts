@@ -4,7 +4,6 @@ import instrumentManager from '../instruments/instrumentManager';
 import brokerClient from '../execution/brokerClient';
 import { calculateDelta } from './blackScholes';
 import { InstrumentCacheEntry } from '../schemas/smartApi';
-import notifier from '../notify/notifier';
 
 export interface StrategyLeg {
   action: 'BUY' | 'SELL';
@@ -289,9 +288,6 @@ export class StrategyManager implements IStrategyManager {
     );
     if (t0CeFiltered.length === 0) {
       logger.error(`No qualifying T0 CE strikes in delta range 0.10-0.15 for ${underlying}.`);
-      await notifier.send(
-        `🚨 Basket generation failed: No qualifying T0 CE strikes in delta range 0.10-0.15 for ${underlying}.`,
-      );
       return null;
     }
     const shortCe = t0CeFiltered.reduce((best, cur) => {
@@ -320,9 +316,6 @@ export class StrategyManager implements IStrategyManager {
     );
     if (t0PeFiltered.length === 0) {
       logger.error(`No qualifying T0 PE strikes in delta range 0.10-0.15 for ${underlying}.`);
-      await notifier.send(
-        `🚨 Basket generation failed: No qualifying T0 PE strikes in delta range 0.10-0.15 for ${underlying}.`,
-      );
       return null;
     }
     const shortPe = t0PeFiltered.reduce((best, cur) => {
@@ -344,9 +337,6 @@ export class StrategyManager implements IStrategyManager {
     const hedgeCe = this.findHedgeStrike(shortCe.ltp, t1CeCandidates, 'CE', skipLiquidityCheck);
     if (!hedgeCe) {
       logger.error(`No valid T1 CE hedge strike found for ${underlying}.`);
-      await notifier.send(
-        `🚨 Basket generation failed: No valid T1 CE hedge strike found for ${underlying}.`,
-      );
       return null;
     }
 
@@ -360,9 +350,6 @@ export class StrategyManager implements IStrategyManager {
     const hedgePe = this.findHedgeStrike(shortPe.ltp, t1PeCandidates, 'PE', skipLiquidityCheck);
     if (!hedgePe) {
       logger.error(`No valid T1 PE hedge strike found for ${underlying}.`);
-      await notifier.send(
-        `🚨 Basket generation failed: No valid T1 PE hedge strike found for ${underlying}.`,
-      );
       return null;
     }
 
