@@ -23,7 +23,6 @@
     "dayjs": "^1.11.10",
     "dotenv": "^16.4.5",
     "lodash": "^4.17.21",
-    "node-cron": "^3.0.3",
     "winston": "^3.12.0",
     "zod": "^3.22.4"
   },
@@ -31,7 +30,6 @@
     "@types/jest": "^29.5.12",
     "@types/lodash": "^4.14.202",
     "@types/node": "^20.11.24",
-    "@types/node-cron": "^3.0.11",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
     "eslint": "^8.57.0",
