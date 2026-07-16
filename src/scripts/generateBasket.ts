@@ -17,7 +17,7 @@ async function main() {
     await instrumentManager.loadInstruments();
 
     const underlying = 'BANKNIFTY';
-    const basket = await strategyManager.buildBasket(underlying, false);
+    const basket = await strategyManager.buildBasket(underlying, true);
     if (!basket) {
       logger.error('Failed to construct the basket.');
       process.exit(1);
