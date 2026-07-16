@@ -150,7 +150,10 @@ export const MarginCalculatorResponseSchema = z.object({
   errorcode: z.string(),
   data: z
     .object({
-      totalMargin: z.coerce.number(),
+      totalMargin: z.preprocess((val) => {
+        const num = Number(val);
+        return isNaN(num) ? undefined : num;
+      }, z.number().optional()),
       totalMarginRequired: z.coerce.number().optional(),
       marginUtilized: z.coerce.number().optional(), // standard response field
       netMaxMargin: z.coerce.number().optional(),
