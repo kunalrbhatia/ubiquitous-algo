@@ -1,12 +1,12 @@
-# BankNifty Ratio Calendar Spread Option Strategy Daemon
+# Banknifty Monthly Calendar Spread Option Strategy Daemon
 
-A production-grade, testable, self-hosted automated options trading pipeline built with **TypeScript (Node.js)** for executing and managing a **Ratio Calendar Spread** strategy on **BANKNIFTY** monthly contracts via the **Angel One SmartAPI**. The daemon runs as a persistent process managed by `pm2`.
+A production-grade, testable, self-hosted automated options trading pipeline built with **TypeScript (Node.js)** for executing and managing a **Monthly Calendar Spread** strategy on **BANKNIFTY** monthly contracts via the **Angel One SmartAPI**. The strategy is designed to run once and exit, invoked at regular intervals (e.g., every 30 minutes during market hours) via a system cron job.
 
 ---
 
 ## 📋 Strategy Overview
 
-The daemon automates a **Ratio Calendar Spread** specifically tailored for BankNifty monthly contracts:
+The daemon automates a **Monthly Calendar Spread** specifically tailored for BankNifty monthly contracts:
 
 - **BANKNIFTY Schedule:**
   - **Entry Window:** Basket construction and order execution happen on the **first trading day after the previous month's expiry** (typically Wednesday).
@@ -19,7 +19,7 @@ The daemon automates a **Ratio Calendar Spread** specifically tailored for BankN
   2. The relative bid-ask spread `(Ask - Bid) / LTP` is within **8%**.
   3. The LTP is aligned with the midpoint: `|LTP - (Ask + Bid) / 2| / LTP` is within **8%**.
   4. Order book has at least `2 * lotsize` bid/ask quantity at the best quote level.
-- **Exit Rules:** Positions are closed immediately on Stoploss breach (1.1% of utilized margin, calculated once at entry) or Profit Target reach (1.5% of utilized margin).
+- **Exit Rules:** Positions are closed immediately on Stoploss breach (**1.5%** of utilized margin) or Profit Target reach (**2.0%** of utilized margin).
 
 ### Basket Structure
 
@@ -36,9 +36,9 @@ The strategy consists of a 4-leg options basket:
 
 ## 🛠️ Tech Stack & Conventions
 
-- **Runtime & Environment:** Node.js (18+), compiled via `tsc`, orchestrated by `pm2`.
+- **Runtime & Environment:** Node.js (18+), compiled via `tsc`.
 - **Package Manager:** `pnpm`.
-- **Broker Integration:** **Angel One SmartAPI** via REST endpoints and **SmartStream WebSocket** for real-time market data streaming.
+- **Broker Integration:** **Angel One SmartAPI** via REST endpoints (LTP is queried directly via API endpoints instead of WebSockets).
 - **Validation:** **Zod** schemas validate all boundaries (`.env` configurations, API responses, instrument cache, and `positions.json` state).
 - **Time & Dates:** **Day.js** (configured with UTC and IST timezone plugins) for schedules, expiry tracking, and age cleanup.
 - **Testing:** **Jest** (`ts-jest`) with **100% test coverage** (branches, functions, lines, statements) enforced in CI.
@@ -60,17 +60,16 @@ The strategy consists of a 4-leg options basket:
 │   ├── strategy/               # VIX filters, delta matching, & basket builder
 │   ├── execution/              # Margin-benefit execution sequencing
 │   │   ├── brokerClient.ts     # SmartAPI REST client
-│   │   ├── executionManager.ts # Order sequencing, P&L monitoring, entry/exit
-│   │   └── smartStream.ts      # SmartStream WebSocket client (real-time LTP feed)
-│   ├── risk/                   # Margin calculator & 1.1% stoploss/1.5% profit target monitors
-│   ├── scheduler/              # node-cron scheduler (monthly schedule and cleanup)
+│   │   └── executionManager.ts # Order sequencing, P&L monitoring, entry/exit
+│   ├── risk/                   # Margin calculator & stoploss/profit target monitors
+│   ├── scheduler/              # Helper jobs (monthly schedule tracking and daily cleanup)
 │   ├── flags/                  # paper/kill/done-for-this-month filesystem watchers
 │   ├── http/                   # HTTP client wrapper with AbortController timeout & retry
 │   ├── logging/                # Daily rotating winston logs
 │   ├── notify/                 # Telegram and Slack alert notifications
 │   ├── positions/              # positionsStore JSON reader/writer (keyed by month)
 │   ├── schemas/                # Zod schemas validating API payloads & inputs
-│   └── index.ts                # Daemon entrypoint
+│   └── index.ts                # Strategy execution entrypoint (run-and-exit tick)
 ├── __tests__/                  # Unit tests (100% coverage target)
 └── tsconfig.json               # TypeScript configuration
 ```
@@ -93,7 +92,7 @@ cp .env.example .env
 Fill in your Angel One SmartAPI credentials and Telegram/Slack credentials.
 
 ### 3. Execution Commands
-- **Run in Development:**
+- **Run in Development (Single Tick):**
   ```bash
   pnpm dev
   ```
@@ -101,7 +100,7 @@ Fill in your Angel One SmartAPI credentials and Telegram/Slack credentials.
   ```bash
   pnpm build
   ```
-- **Start Compiled App:**
+- **Run Compiled Single Tick:**
   ```bash
   pnpm start
   ```
@@ -114,6 +113,14 @@ Fill in your Angel One SmartAPI credentials and Telegram/Slack credentials.
   pnpm verify
   ```
 
+### 4. Production Scheduling
+Because the strategy is a monthly strategy, monitoring is handled by scheduling a single run-and-exit tick every 30 minutes during market hours (Mon-Fri, 09:15 to 15:30 IST) via a system cron job.
+
+Example crontab configuration:
+```cron
+*/30 9-15 * * 1-5 cd /path/to/ubiquitous-algo && pnpm start >> /path/to/ubiquitous-algo/logs/cron.log 2>&1
+```
+
 ---
 
 ## 🚦 Controls
@@ -121,4 +128,4 @@ Fill in your Angel One SmartAPI credentials and Telegram/Slack credentials.
 The daemon's behavior can be dynamically controlled via filesystem flags in the root directory:
 * **`.paper`**: If present, the daemon operates in Paper Trading mode (simulates order fills). If absent, it operates in Live Trading mode.
 * **`.kill`**: If present, the daemon pauses all execution activity and remains idle.
-* **`done-for-this-month`**: Automatically created when a target or stoploss exit is reached. While present, the daemon pauses all trades and WebSocket tracking. It is automatically cleared on the next cycle's entry day.
+* **`done-for-this-month`**: Automatically created when a target or stoploss exit is reached. While present, the daemon pauses all trades. It is automatically cleared on the next cycle's entry day.

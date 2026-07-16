@@ -199,6 +199,8 @@ export const MonthlyPositionSchema = z.object({
   marginUtilized: z.number(),
   orders: z.array(OrderRecordSchema),
   realizedPnl: z.number(),
+  unrealizedPnl: z.number().optional(),
+  mtm: z.number().optional(),
   skippedThisMonth: z.boolean(),
   vixAtEntry: z.number().optional(),
 });
