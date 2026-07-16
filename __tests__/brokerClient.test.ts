@@ -154,6 +154,7 @@ describe('BrokerClient', () => {
       message: 'SUCCESS',
       errorcode: '0000',
       data: {
+        totalMargin: 0,
         totalMarginRequired: 400000,
       },
     };
