@@ -117,10 +117,10 @@ export class StrategyManager implements IStrategyManager {
     widenCap = 10,
   ): LiquidCandidate | null {
     const S = shortLtp;
-    const lowerBound = S * 0.95;
-    const upperBound = S * 1.05;
+    const lowerBound = S * 0.9;
+    const upperBound = S * 1.1;
 
-    // 1. Try to find the closest within the ±5% band
+    // 1. Try to find the closest within the ±10% band
     let bestInBand: LiquidCandidate | null = null;
     let minDiff = Infinity;
 
