@@ -183,6 +183,24 @@ describe('BrokerClient', () => {
     expect(margin).toBe(0);
   });
 
+  test('getMarginUtilized parses totalMargin correctly when it is NaN string or number', async () => {
+    const mockMarginRes = {
+      status: true,
+      message: 'SUCCESS',
+      errorcode: '0000',
+      data: {
+        totalMargin: 'NaN',
+        totalMarginRequired: 400000,
+      },
+    };
+    (httpClient.request as jest.Mock).mockResolvedValueOnce(mockMarginRes);
+
+    const margin = await client.getMarginUtilized([
+      { exchange: 'NFO', symboltoken: '123', quantity: 50, action: 'BUY' },
+    ]);
+    expect(margin).toBe(400000);
+  });
+
   test('getMarginUtilized throws on status false and uses fallback', async () => {
     (httpClient.request as jest.Mock).mockResolvedValueOnce({
       status: false,
