@@ -4,6 +4,7 @@ import instrumentManager from '../instruments/instrumentManager';
 import brokerClient from '../execution/brokerClient';
 import { calculateDelta } from './blackScholes';
 import { InstrumentCacheEntry } from '../schemas/smartApi';
+import env from '../schemas/env';
 
 export interface StrategyLeg {
   action: 'BUY' | 'SELL';
@@ -367,7 +368,7 @@ export class StrategyManager implements IStrategyManager {
     const basket: StrategyLeg[] = [
       {
         action: 'SELL',
-        quantity: shortCe.inst.lotsize * 3,
+        quantity: shortCe.inst.lotsize * env.LOTS,
         expiry: expiryT0,
         strike: shortCe.strike,
         type: 'CE',
@@ -381,7 +382,7 @@ export class StrategyManager implements IStrategyManager {
       },
       {
         action: 'SELL',
-        quantity: shortPe.inst.lotsize * 3,
+        quantity: shortPe.inst.lotsize * env.LOTS,
         expiry: expiryT0,
         strike: shortPe.strike,
         type: 'PE',
@@ -395,7 +396,7 @@ export class StrategyManager implements IStrategyManager {
       },
       {
         action: 'BUY',
-        quantity: hedgeCe.inst.lotsize * 3,
+        quantity: hedgeCe.inst.lotsize * env.LOTS,
         expiry: expiryT1,
         strike: hedgeCe.strike,
         type: 'CE',
@@ -409,7 +410,7 @@ export class StrategyManager implements IStrategyManager {
       },
       {
         action: 'BUY',
-        quantity: hedgePe.inst.lotsize * 3,
+        quantity: hedgePe.inst.lotsize * env.LOTS,
         expiry: expiryT1,
         strike: hedgePe.strike,
         type: 'PE',

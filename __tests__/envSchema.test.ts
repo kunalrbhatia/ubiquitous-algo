@@ -14,6 +14,11 @@ describe('Environment Schema Validation', () => {
     const parsed = envSchema.parse(validEnv);
     expect(parsed.PORT).toBe(3000);
     expect(parsed.NODE_ENV).toBe('production');
+    expect(parsed.LOTS).toBe(1);
+
+    const withLots = { ...validEnv, LOTS: '5' };
+    const parsedWithLots = envSchema.parse(withLots);
+    expect(parsedWithLots.LOTS).toBe(5);
   });
 
   test('throws error on missing credentials', () => {
