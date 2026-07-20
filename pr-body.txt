@@ -1,0 +1,19 @@
+### Description
+
+Replaces LTP-based pricing with executable `bid/ask`-based pricing for exit orders and fair value mid-price for real-time P&L tracking to prevent exit order fill failures and ensure accurate tracking.
+
+### Changes
+
+- **Market Data & Client**: Defined and exported `OptionQuote` interface in `brokerClient.ts`. Updated `getMarketDataBatch` return type to `Promise<Map<string, OptionQuote>>` incorporating token-specific `bid/ask` metrics.
+- **Fair & Executable P&L**: Added `getLegPnl` and `getFairPnl` helpers in `executionManager.ts`. Updated `monitorPnl` to use fair mid-prices for tracking stop-loss and profit target thresholds.
+- **Executable Exit Pricing**: Added `getExitLimitPrice` helper in `executionManager.ts` to compute limit prices near bid (for sell exits) and ask (for buy exits). Added `isExit` parameter to `placeLimitOrderWithReprice` to leverage this pricing model on position exits.
+- **Position Store**: Extended `OrderRecordSchema` in `smartApi.ts` with optional `currentPrice`, `currentBid`, and `currentAsk` fields. Updated `monitorPnl` to store these values during live evaluation.
+- **Documentation**: Documented changes in the `README.md`.
+
+### Verification
+
+- Run `pnpm verify` successfully verifying:
+  - Formatting via Prettier.
+  - Linting via ESLint.
+  - Typecheck via TSC.
+  - Executed all 128 Jest unit tests with 100% test coverage.
