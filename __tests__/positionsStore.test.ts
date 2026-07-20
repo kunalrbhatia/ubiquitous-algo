@@ -18,6 +18,32 @@ describe('PositionsStore', () => {
     expect(month).toMatch(/^\d{4}-\d{2}$/);
   });
 
+  test('getCurrentMonthString targets next month if past current month expiry', () => {
+    const originalDate = global.Date;
+    const spy = jest.spyOn(global, 'Date').mockImplementation(function (this: any, ...args: any[]) {
+      if (args.length === 0) {
+        return new originalDate('2026-07-29T10:00:00.000Z');
+      }
+      return new (originalDate as any)(...args);
+    } as any);
+    const month = store.getCurrentMonthString();
+    expect(month).toBe('2026-08');
+    spy.mockRestore();
+  });
+
+  test('getCurrentMonthString targets current month if before current month expiry', () => {
+    const originalDate = global.Date;
+    const spy = jest.spyOn(global, 'Date').mockImplementation(function (this: any, ...args: any[]) {
+      if (args.length === 0) {
+        return new originalDate('2026-07-20T10:00:00.000Z');
+      }
+      return new (originalDate as any)(...args);
+    } as any);
+    const month = store.getCurrentMonthString();
+    expect(month).toBe('2026-07');
+    spy.mockRestore();
+  });
+
   test('readPosition returns null when file does not exist', () => {
     (fs.existsSync as jest.Mock).mockReturnValue(false);
     expect(store.readPosition('BANKNIFTY', '2026-07', true)).toBeNull();
