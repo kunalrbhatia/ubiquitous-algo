@@ -27,7 +27,7 @@ node .agents/skills/pr-description-check/scripts/verify.cjs pr-body.txt
 ### 3. Create Branch, Commit, Push, and Open PR
 Once all checks pass, run the following sequence to push the changes, open the PR using the verified description file, and monitor its checks:
 ```powershell
-git checkout -b <branch-name>; git add .; git commit -m "<conventional-commit-msg>"; git push -u origin <branch-name>; gh pr create --title "<pr-title>" --body-file pr-body.txt --reviewer kunalbhatia; node .agents/skills/verify-pr-status/scripts/verify-checks.cjs
+git checkout -b <branch-name>; git add .; git commit -m "<conventional-commit-msg>"; git push -u origin <branch-name>; gh pr create --title "<pr-title>" --body-file pr-body.txt --reviewer kunalbhatia; Remove-Item pr-body.txt; node .agents/skills/verify-pr-status/scripts/verify-checks.cjs
 ```
 
 ## Guidelines

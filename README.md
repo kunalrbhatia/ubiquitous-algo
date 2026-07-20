@@ -38,7 +38,7 @@ The strategy consists of a 4-leg options basket:
 
 - **Runtime & Environment:** Node.js (18+), compiled via `tsc`.
 - **Package Manager:** `pnpm`.
-- **Broker Integration:** **Angel One SmartAPI** via REST endpoints (LTP is queried directly via API endpoints instead of WebSockets).
+- **Broker Integration:** **Angel One SmartAPI** via REST endpoints. Uses **bid/ask-based pricing** for exit orders and **mid-price** for fair P&L calculations (replacing standard LTP-based pricing to prevent exit order fill failures and ensure accurate tracking of executable P&L).
 - **Validation:** **Zod** schemas validate all boundaries (`.env` configurations, API responses, instrument cache, and `positions.json` state).
 - **Time & Dates:** **Day.js** (configured with UTC and IST timezone plugins) for schedules, expiry tracking, and age cleanup.
 - **Testing:** **Jest** (`ts-jest`) with **100% test coverage** (branches, functions, lines, statements) enforced in CI.

@@ -2,12 +2,59 @@ import fs from 'fs';
 import path from 'path';
 import logger from '../logging/logger';
 import flagWatcher from '../flags/flagWatcher';
-import brokerClient, { PlaceOrderParams } from './brokerClient';
+import brokerClient, { PlaceOrderParams, OptionQuote } from './brokerClient';
 import positionsStore from '../positions/positionsStore';
 import { StrategyLeg } from '../strategy/strategyManager';
 import { OrderRecord, MonthlyPosition } from '../schemas/smartApi';
 
 const OPTION_TICK_SIZE = 0.05;
+
+export function getLegPnl(
+  direction: 'BUY' | 'SELL',
+  entryPremium: number,
+  quote: OptionQuote,
+  qty: number,
+): number {
+  // Use executable price (bid for sells, ask for buys) for conservative P&L
+  const executablePrice =
+    direction === 'BUY'
+      ? quote.bid > 0
+        ? quote.bid
+        : quote.ltp // if we sold now, we get bid
+      : quote.ask > 0
+        ? quote.ask
+        : quote.ltp; // if we buy now, we pay ask
+
+  if (direction === 'BUY') {
+    return (executablePrice - entryPremium) * qty;
+  } else {
+    return (entryPremium - executablePrice) * qty;
+  }
+}
+
+export function getFairPnl(
+  direction: 'BUY' | 'SELL',
+  entryPremium: number,
+  quote: OptionQuote,
+  qty: number,
+): number {
+  const midPrice = quote.bid > 0 && quote.ask > 0 ? (quote.bid + quote.ask) / 2 : quote.ltp;
+
+  if (direction === 'BUY') return (midPrice - entryPremium) * qty;
+  else return (entryPremium - midPrice) * qty;
+}
+
+export function getExitLimitPrice(quote: OptionQuote, direction: 'BUY' | 'SELL'): number {
+  const TICK = 0.05; // Angel One minimum tick
+
+  if (direction === 'SELL') {
+    // Selling to close a LONG position → price near bid
+    return quote.bid > 0 ? Math.round((quote.bid - TICK) / TICK) * TICK : quote.ltp;
+  } else {
+    // Buying to close a SHORT position → price near ask
+    return quote.ask > 0 ? Math.round((quote.ask + TICK) / TICK) * TICK : quote.ltp;
+  }
+}
 
 export interface IExecutionManager {
   executeEntry(underlying: string, basket: StrategyLeg[]): Promise<boolean>;
@@ -91,6 +138,7 @@ export class ExecutionManager implements IExecutionManager {
     maxSlippagePct = 0.03,
     repriceIntervalMs = 3000,
     maxAttempts = 4,
+    isExit = false,
   ): Promise<{ orderid: string | null; cancelFailed: boolean }> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -102,11 +150,24 @@ export class ExecutionManager implements IExecutionManager {
           return { orderid: null, cancelFailed: false };
         }
 
-        const passive = transactiontype === 'BUY' ? bid : ask;
-        const aggressive = transactiontype === 'BUY' ? ask : bid;
+        let targetPrice: number;
+        if (isExit) {
+          const optionQuote: OptionQuote = {
+            symbolToken: leg.symboltoken,
+            ltp,
+            bid,
+            ask,
+            bidQty: 0,
+            askQty: 0,
+          };
+          targetPrice = getExitLimitPrice(optionQuote, transactiontype);
+        } else {
+          const passive = transactiontype === 'BUY' ? bid : ask;
+          const aggressive = transactiontype === 'BUY' ? ask : bid;
 
-        const fraction = maxAttempts > 1 ? attempt / (maxAttempts - 1) : 1;
-        let targetPrice = passive + fraction * (aggressive - passive);
+          const fraction = maxAttempts > 1 ? attempt / (maxAttempts - 1) : 1;
+          targetPrice = passive + fraction * (aggressive - passive);
+        }
 
         if (transactiontype === 'BUY') {
           const cap = ltp * (1 + maxSlippagePct);
@@ -495,6 +556,7 @@ export class ExecutionManager implements IExecutionManager {
       maxSlippagePct,
       3000,
       maxAttempts,
+      true,
     );
 
     if (repriceRes.cancelFailed) {
@@ -572,18 +634,29 @@ export class ExecutionManager implements IExecutionManager {
     logger.info(`Monitoring P&L for ${underlying} month ${month}...`);
 
     let currentPnl = 0;
+    const tokens = pos.orders.map((leg) => leg.symboltoken);
+    const exchange = pos.orders[0]?.exchange || 'NFO';
+    let quotes = new Map<string, OptionQuote>();
+    try {
+      quotes = await brokerClient.getMarketDataBatch(exchange, tokens);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(`Failed to get market quotes batch during P&L monitor: ${msg}`);
+      return;
+    }
+
     for (const leg of pos.orders) {
-      try {
-        const ltp = await brokerClient.getLtp(leg.exchange, leg.tradingsymbol, leg.symboltoken);
-        if (leg.transactiontype === 'BUY') {
-          currentPnl += (ltp - leg.price) * leg.quantity;
-        } else {
-          currentPnl += (leg.price - ltp) * leg.quantity;
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        logger.error(`Failed to get LTP for ${leg.tradingsymbol} during P&L monitor: ${msg}`);
+      const quote = quotes.get(leg.symboltoken);
+      if (!quote) {
+        logger.error(`No quote found for token ${leg.symboltoken} during P&L monitor`);
+        continue;
       }
+      leg.currentPrice = quote.ltp;
+      leg.currentBid = quote.bid;
+      leg.currentAsk = quote.ask;
+
+      const legPnl = getFairPnl(leg.transactiontype, leg.price, quote, leg.quantity);
+      currentPnl += legPnl;
     }
 
     logger.info(`Current unrealized P&L for ${underlying}: ₹${currentPnl.toLocaleString()}`);

@@ -63,6 +63,24 @@ describe('ExecutionManager', () => {
       bid: 99.5,
       ask: 100.5,
     });
+    (brokerClient.getMarketDataBatch as jest.Mock).mockImplementation(
+      async (exchange: string, tokens: string[]) => {
+        const map = new Map();
+        for (const token of tokens) {
+          let ltp = 100;
+          ltp = await brokerClient.getLtp(exchange, '', token);
+          map.set(token, {
+            symbolToken: token,
+            ltp,
+            bid: ltp - 0.5,
+            ask: ltp + 0.5,
+            bidQty: 100,
+            askQty: 100,
+          });
+        }
+        return map;
+      },
+    );
     (brokerClient.getOrderBook as jest.Mock).mockResolvedValue([]);
   });
 
