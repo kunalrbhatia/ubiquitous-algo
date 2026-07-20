@@ -37,6 +37,17 @@ export class PositionsStore implements IPositionsStore {
 
   getCurrentMonthString(): string {
     const now = dayjs();
+    const getLastTuesday = (y: number, m: number) => {
+      let date = dayjs(`${y}-${String(m).padStart(2, '0')}-01`).endOf('month');
+      while (date.day() !== 2) {
+        date = date.subtract(1, 'day');
+      }
+      return date;
+    };
+    const currentExpiry = getLastTuesday(now.year(), now.month() + 1);
+    if (now.isAfter(currentExpiry, 'day')) {
+      return now.add(1, 'month').format('YYYY-MM');
+    }
     return now.format('YYYY-MM');
   }
 
