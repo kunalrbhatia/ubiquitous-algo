@@ -7,6 +7,17 @@ jest.mock('../src/execution/brokerClient');
 jest.mock('../src/instruments/instrumentManager');
 jest.mock('../src/strategy/blackScholes');
 jest.mock('../src/logging/logger');
+jest.mock('dayjs', () => {
+  const actual = jest.requireActual('dayjs');
+  const customDayjs = (date: any, format: any) => {
+    if (!date) {
+      return actual('2026-07-01');
+    }
+    return actual(date, format);
+  };
+  Object.assign(customDayjs, actual);
+  return customDayjs;
+});
 
 describe('StrategyManager', () => {
   let manager: StrategyManager;

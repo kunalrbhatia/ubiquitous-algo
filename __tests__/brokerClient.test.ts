@@ -298,7 +298,14 @@ describe('BrokerClient', () => {
     const res = await client.getMarketDataBatch('NFO', ['token123']);
     expect(res.size).toBe(1);
     const quote = res.get('token123');
-    expect(quote).toEqual({ ltp: 100, bid: 99.5, ask: 100.5, bidQty: 100, askQty: 100 });
+    expect(quote).toEqual({
+      symbolToken: 'token123',
+      ltp: 100,
+      bid: 99.5,
+      ask: 100.5,
+      bidQty: 100,
+      askQty: 100,
+    });
   });
 
   test('getMarketDataBatch handles empty tokens list', async () => {
@@ -387,7 +394,14 @@ describe('BrokerClient', () => {
     const res = await client.getMarketDataBatch('NFO', ['token123']);
     expect(res.size).toBe(1);
     const quote = res.get('token123');
-    expect(quote).toEqual({ ltp: 100, bid: 100, ask: 100, bidQty: 0, askQty: 0 });
+    expect(quote).toEqual({
+      symbolToken: 'token123',
+      ltp: 100,
+      bid: 100,
+      ask: 100,
+      bidQty: 0,
+      askQty: 0,
+    });
   });
 
   test('cancelOrder succeeds on status true', async () => {

@@ -33,18 +33,22 @@ export interface MarginLeg {
   action: 'BUY' | 'SELL';
 }
 
+export interface OptionQuote {
+  symbolToken: string;
+  ltp: number;
+  bid: number;
+  ask: number;
+  bidQty: number;
+  askQty: number;
+}
+
 export interface IBrokerClient {
   getLtp(exchange: string, tradingsymbol: string, symboltoken: string): Promise<number>;
   getMarketData(
     exchange: string,
     symboltoken: string,
   ): Promise<{ ltp: number; bid: number; ask: number }>;
-  getMarketDataBatch(
-    exchange: string,
-    symboltokens: string[],
-  ): Promise<
-    Map<string, { ltp: number; bid: number; ask: number; bidQty: number; askQty: number }>
-  >;
+  getMarketDataBatch(exchange: string, symboltokens: string[]): Promise<Map<string, OptionQuote>>;
   placeOrder(params: PlaceOrderParams): Promise<string>;
   cancelOrder(orderid: string, variety: string): Promise<void>;
   getOrderBook(): Promise<OrderBookItem[]>;
@@ -144,13 +148,8 @@ export class BrokerClient implements IBrokerClient {
   async getMarketDataBatch(
     exchange: string,
     symboltokens: string[],
-  ): Promise<
-    Map<string, { ltp: number; bid: number; ask: number; bidQty: number; askQty: number }>
-  > {
-    const resultMap = new Map<
-      string,
-      { ltp: number; bid: number; ask: number; bidQty: number; askQty: number }
-    >();
+  ): Promise<Map<string, OptionQuote>> {
+    const resultMap = new Map<string, OptionQuote>();
     if (symboltokens.length === 0) {
       return resultMap;
     }
@@ -195,7 +194,14 @@ export class BrokerClient implements IBrokerClient {
           const ask = sellOrders.length > 0 ? sellOrders[0].price : ltp;
           const askQty = sellOrders.length > 0 ? sellOrders[0].quantity : 0;
 
-          resultMap.set(item.symbolToken, { ltp, bid, ask, bidQty, askQty });
+          resultMap.set(item.symbolToken, {
+            symbolToken: item.symbolToken,
+            ltp,
+            bid,
+            ask,
+            bidQty,
+            askQty,
+          });
         }
       } catch (error: unknown) {
         /* istanbul ignore next */

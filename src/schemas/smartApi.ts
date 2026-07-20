@@ -194,6 +194,9 @@ export const OrderRecordSchema = z.object({
   orderid: z.string(),
   status: z.string(),
   price: z.number(),
+  currentPrice: z.number().optional(),
+  currentBid: z.number().optional(),
+  currentAsk: z.number().optional(),
 });
 export type OrderRecord = z.infer<typeof OrderRecordSchema>;
 
