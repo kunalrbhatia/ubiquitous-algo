@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -14,7 +16,56 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.tz.setDefault('Asia/Kolkata');
 
+const lockFilePath = path.resolve(process.cwd(), 'trading-tick.lock');
+
+function acquireLock(): boolean {
+  if (fs.existsSync(lockFilePath)) {
+    try {
+      const pidStr = fs.readFileSync(lockFilePath, 'utf-8').trim();
+      const pid = parseInt(pidStr, 10);
+      if (!isNaN(pid)) {
+        process.kill(pid, 0);
+        // If process.kill doesn't throw, the process is still running.
+        return false;
+      }
+    } catch (err: unknown) {
+      // Process is not running (ESRCH) or we don't have permission. Overwrite lock.
+    }
+  }
+
+  fs.writeFileSync(lockFilePath, process.pid.toString(), 'utf-8');
+
+  const releaseLock = () => {
+    try {
+      if (fs.existsSync(lockFilePath)) {
+        const pidStr = fs.readFileSync(lockFilePath, 'utf-8').trim();
+        if (parseInt(pidStr, 10) === process.pid) {
+          fs.unlinkSync(lockFilePath);
+        }
+      }
+    } catch (err) {
+      // Ignore release lock errors
+    }
+  };
+
+  process.on('exit', releaseLock);
+  process.on('SIGINT', () => {
+    releaseLock();
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    releaseLock();
+    process.exit(0);
+  });
+  return true;
+}
+
 async function bootstrap() {
+  if (!acquireLock()) {
+    logger.warn('Another instance of the strategy tick is already running. Exiting.');
+    process.exit(0);
+  }
+
   logger.info('===================================================');
   logger.info('Running Banknifty Monthly Calendar Spread Option Strategy Tick...');
   logger.info(`Environment: ${env.NODE_ENV}`);

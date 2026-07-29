@@ -10,6 +10,8 @@ import {
   InstrumentCacheEntry,
 } from '../schemas/smartApi';
 
+import { parseExpiryDate } from './dateUtils';
+
 export interface IInstrumentManager {
   loadInstruments(forceDownload?: boolean): Promise<void>;
   getInstrument(
@@ -212,14 +214,8 @@ export class InstrumentManager implements IInstrumentManager {
 
     // Sort expiries chronologically
     return Array.from(expiries).sort((a, b) => {
-      const dateA = dayjs(
-        a.replace(/([A-Z]{3})/, (m) => m.charAt(0) + m.slice(1).toLowerCase()),
-        'DDMMMYYYY',
-      );
-      const dateB = dayjs(
-        b.replace(/([A-Z]{3})/, (m) => m.charAt(0) + m.slice(1).toLowerCase()),
-        'DDMMMYYYY',
-      );
+      const dateA = parseExpiryDate(a);
+      const dateB = parseExpiryDate(b);
       return dateA.diff(dateB);
     });
   }

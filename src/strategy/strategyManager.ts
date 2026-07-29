@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import logger from '../logging/logger';
 import instrumentManager from '../instruments/instrumentManager';
+import { parseExpiryDate } from '../instruments/dateUtils';
 import brokerClient from '../execution/brokerClient';
 import { calculateDelta } from './blackScholes';
 import { InstrumentCacheEntry } from '../schemas/smartApi';
@@ -197,10 +198,7 @@ export class StrategyManager implements IStrategyManager {
     const now = dayjs();
 
     const futureExpiries = expiries.filter((exp) => {
-      const expDate = dayjs(
-        exp.replace(/([A-Z]{3})/, (m) => m.charAt(0) + m.slice(1).toLowerCase()),
-        'DDMMMYYYY',
-      ).endOf('day');
+      const expDate = parseExpiryDate(exp).endOf('day');
       /* istanbul ignore next */
       return expDate.isAfter(now) || expDate.isSame(now, 'day');
     });
@@ -268,21 +266,11 @@ export class StrategyManager implements IStrategyManager {
     for (let strike = minStrike; strike <= maxStrike; strike += 100) {
       candidateStrikes.push(strike);
     }
-    const t0ExpDate = dayjs(
-      expiryT0.replace(/([A-Z]{3})/, (m) => m.charAt(0) + m.slice(1).toLowerCase()),
-      'DDMMMYYYY',
-    )
-      .hour(15)
-      .minute(30);
+    const t0ExpDate = parseExpiryDate(expiryT0).hour(15).minute(30);
     const t0DaysToExpiry = Math.max(0.01, t0ExpDate.diff(now, 'day', true));
     const t0 = t0DaysToExpiry / 365;
 
-    const t1ExpDate = dayjs(
-      expiryT1.replace(/([A-Z]{3})/, (m) => m.charAt(0) + m.slice(1).toLowerCase()),
-      'DDMMMYYYY',
-    )
-      .hour(15)
-      .minute(30);
+    const t1ExpDate = parseExpiryDate(expiryT1).hour(15).minute(30);
     const t1DaysToExpiry = Math.max(0.01, t1ExpDate.diff(now, 'day', true));
     const t1 = t1DaysToExpiry / 365;
 

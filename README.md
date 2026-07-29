@@ -128,3 +128,4 @@ The daemon's behavior can be dynamically controlled via filesystem flags in the 
 * **`.paper`**: If present, the daemon operates in Paper Trading mode (simulates order fills). If absent, it operates in Live Trading mode.
 * **`.kill`**: If present, the daemon pauses all execution activity and remains idle.
 * **`done-for-this-month`**: Automatically created when a target or stoploss exit is reached. While present, the daemon pauses all trades. It is automatically cleared on the next cycle's entry day.
+* **`trading-tick.lock`**: Automatically created when the daemon is running to prevent concurrent executions. Stale locks are automatically bypassed if the associated process ID is no longer active.
