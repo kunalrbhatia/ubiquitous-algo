@@ -266,7 +266,6 @@ export class StrategyManager implements IStrategyManager {
     for (let strike = minStrike; strike <= maxStrike; strike += 100) {
       candidateStrikes.push(strike);
     }
-
     const t0ExpDate = parseExpiryDate(expiryT0).hour(15).minute(30);
     const t0DaysToExpiry = Math.max(0.01, t0ExpDate.diff(now, 'day', true));
     const t0 = t0DaysToExpiry / 365;
