@@ -15,8 +15,21 @@ jest.mock('dayjs', () => {
     }
     return actual(date, format);
   };
-  Object.assign(customDayjs, actual);
-  return customDayjs;
+  const proxy = new Proxy(customDayjs, {
+    get(target, prop, receiver) {
+      if (prop === 'extend') {
+        return (plugin: any, option: any) => {
+          return actual.extend(plugin, option);
+        };
+      }
+      const val = Reflect.get(target, prop, receiver);
+      if (val !== undefined) {
+        return val;
+      }
+      return Reflect.get(actual, prop);
+    }
+  });
+  return proxy;
 });
 
 describe('StrategyManager', () => {
