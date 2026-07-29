@@ -117,6 +117,7 @@ export class StrategyManager implements IStrategyManager {
     type: 'CE' | 'PE',
     skipLiquidityCheck: boolean,
     widenCap = 10,
+    minLotsDepth = 1,
   ): LiquidCandidate | null {
     const S = shortLtp;
     const lowerBound = S * 0.9;
@@ -128,7 +129,7 @@ export class StrategyManager implements IStrategyManager {
 
     for (const c of candidates) {
       if (c.ltp >= lowerBound && c.ltp <= upperBound) {
-        const isCandLiquid = skipLiquidityCheck || this.isLiquid(c);
+        const isCandLiquid = skipLiquidityCheck || this.isLiquid(c, minLotsDepth);
         if (isCandLiquid) {
           const diff = Math.abs(c.ltp - S);
           if (diff < minDiff) {
@@ -161,7 +162,10 @@ export class StrategyManager implements IStrategyManager {
     const closestCand = candidates[closestIndex];
 
     /* istanbul ignore next */
-    if (closestCand.ltp >= lowerBound && (skipLiquidityCheck || this.isLiquid(closestCand))) {
+    if (
+      closestCand.ltp >= lowerBound &&
+      (skipLiquidityCheck || this.isLiquid(closestCand, minLotsDepth))
+    ) {
       return closestCand;
     }
 
@@ -177,7 +181,7 @@ export class StrategyManager implements IStrategyManager {
       }
       const cand = candidates[nextIndex];
       if (cand.ltp >= lowerBound) {
-        const isCandLiquid = skipLiquidityCheck || this.isLiquid(cand);
+        const isCandLiquid = skipLiquidityCheck || this.isLiquid(cand, minLotsDepth);
         if (isCandLiquid) {
           logger.info(
             `Hedge search widened by ${step} steps to strike ${cand.strike} (LTP: ${cand.ltp})`,
