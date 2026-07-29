@@ -28,7 +28,7 @@ function acquireLock(): boolean {
         // If process.kill doesn't throw, the process is still running.
         return false;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Process is not running (ESRCH) or we don't have permission. Overwrite lock.
     }
   }
@@ -43,12 +43,20 @@ function acquireLock(): boolean {
           fs.unlinkSync(lockFilePath);
         }
       }
-    } catch (err) {}
+    } catch (err) {
+      // Ignore release lock errors
+    }
   };
 
   process.on('exit', releaseLock);
-  process.on('SIGINT', () => { releaseLock(); process.exit(0); });
-  process.on('SIGTERM', () => { releaseLock(); process.exit(0); });
+  process.on('SIGINT', () => {
+    releaseLock();
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    releaseLock();
+    process.exit(0);
+  });
   return true;
 }
 
