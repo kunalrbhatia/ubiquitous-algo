@@ -212,8 +212,8 @@ export class InstrumentManager implements IInstrumentManager {
 
     // Sort expiries chronologically
     return Array.from(expiries).sort((a, b) => {
-      const dateA = dayjs(a, 'DDMMMYYYY');
-      const dateB = dayjs(b, 'DDMMMYYYY');
+      const dateA = dayjs(a.replace(/([A-Z]{3})/, (m) => m.charAt(0) + m.slice(1).toLowerCase()), 'DDMMMYYYY');
+      const dateB = dayjs(b.replace(/([A-Z]{3})/, (m) => m.charAt(0) + m.slice(1).toLowerCase()), 'DDMMMYYYY');
       return dateA.diff(dateB);
     });
   }
