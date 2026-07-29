@@ -13,7 +13,6 @@ import {
 import { parseExpiryDate } from './dateUtils';
 
 export interface IInstrumentManager {
-
   loadInstruments(forceDownload?: boolean): Promise<void>;
   getInstrument(
     underlying: string,

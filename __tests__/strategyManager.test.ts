@@ -27,7 +27,7 @@ jest.mock('dayjs', () => {
         return val;
       }
       return Reflect.get(actual, prop);
-    }
+    },
   });
   return proxy;
 });
