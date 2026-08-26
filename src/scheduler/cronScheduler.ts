@@ -88,10 +88,18 @@ export class CronScheduler {
 
     const activeExpiries = instrumentManager.getExpiries(underlying);
 
-    const currentExpiry = getLastTuesdayOfMonth(now.year(), now.month() + 1, activeExpiries);
     // Derive prevMonthDate from the target month, not from 'now'
     // This ensures entry day is after the last completed cycle's expiry
     const targetMonth = dayjs(currentMonth + '-01');
+    // currentExpiry must ALSO be derived from the target month — using
+    // now.month()+1 here breaks monitoring between entry day and the 1st of
+    // the target month (e.g. entered Aug 26 → now.month()+1 = Aug → expiry
+    // computed as Aug 25, already past → monitoring skipped entirely).
+    const currentExpiry = getLastTuesdayOfMonth(
+      targetMonth.year(),
+      targetMonth.month() + 1,
+      activeExpiries,
+    );
     const prevMonthDate = targetMonth.subtract(1, 'month');
     const prevExpiry = getLastTuesdayOfMonth(
       prevMonthDate.year(),
