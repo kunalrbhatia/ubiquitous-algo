@@ -9,6 +9,7 @@ import strategyManager from '../strategy/strategyManager';
 import executionManager from '../execution/executionManager';
 import positionsStore from '../positions/positionsStore';
 import flagWatcher from '../flags/flagWatcher';
+import env from '../schemas/env';
 import fs from 'fs';
 import path from 'path';
 import { parseExpiryDate } from '../instruments/dateUtils';
@@ -83,6 +84,9 @@ export class CronScheduler {
 
   async processTradingCycle(now: dayjs.Dayjs, minutesSinceMidnight: number, isPaper: boolean) {
     const underlying = 'BANKNIFTY';
+    // Exit time from env (HH:MM → minutes since midnight). Defaults 14:59.
+    const [exitH, exitM] = env.EXIT_TIME.split(':').map(Number);
+    const exitMinuteOfDay = exitH * 60 + exitM;
     const currentMonth = positionsStore.getCurrentMonthString();
     const currentPosition = positionsStore.readPosition(underlying, currentMonth, isPaper);
 
@@ -139,9 +143,9 @@ export class CronScheduler {
 
     // 3. Exit Logic
     const isExpiryDay = now.isSame(currentExpiry, 'day');
-    if (isExpiryDay && minutesSinceMidnight >= 899 && minutesSinceMidnight <= 930) {
+    if (isExpiryDay && minutesSinceMidnight >= exitMinuteOfDay && minutesSinceMidnight <= 930) {
       if (currentPosition && currentPosition.status === 'open') {
-        logger.info(`T0 expiry day reached. Exiting position at 14:59 IST...`);
+        logger.info(`T0 expiry day reached. Exiting position at ${env.EXIT_TIME} IST...`);
         await executionManager.executeExit(underlying, currentMonth, isPaper);
         return;
       }
@@ -154,7 +158,7 @@ export class CronScheduler {
 
     if (isAfterOrOnEntry && isBeforeOrOnExpiry) {
       if (currentPosition && currentPosition.status === 'open') {
-        if (isExpiryDay && minutesSinceMidnight >= 899) {
+        if (isExpiryDay && minutesSinceMidnight >= exitMinuteOfDay) {
           return;
         }
         await executionManager.monitorPnl(underlying, currentMonth, isPaper);

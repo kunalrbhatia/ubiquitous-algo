@@ -16,6 +16,8 @@ export const envSchema = z.object({
   CLIENT_PIN: z.string().min(1, 'CLIENT_PIN is required'),
   CLIENT_TOTP_PIN: z.string().min(1, 'CLIENT_TOTP_PIN is required'),
   LOTS: z.coerce.number().int().positive().default(1),
+  /** Market-close exit time on expiry day (HH:MM, 24h IST) — e.g. "14:59" */
+  EXIT_TIME: z.string().default('14:59'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -36,6 +38,7 @@ try {
       CLIENT_PIN: '1234',
       CLIENT_TOTP_PIN: '123456',
       LOTS: 1,
+      EXIT_TIME: '14:59',
     };
   } else {
     console.error('❌ Invalid environment configuration:', error);
