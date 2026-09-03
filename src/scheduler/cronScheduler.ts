@@ -139,9 +139,9 @@ export class CronScheduler {
 
     // 3. Exit Logic
     const isExpiryDay = now.isSame(currentExpiry, 'day');
-    if (isExpiryDay && minutesSinceMidnight >= 915 && minutesSinceMidnight <= 930) {
+    if (isExpiryDay && minutesSinceMidnight >= 899 && minutesSinceMidnight <= 930) {
       if (currentPosition && currentPosition.status === 'open') {
-        logger.info(`T0 expiry day reached. Exiting position at 15:15 IST...`);
+        logger.info(`T0 expiry day reached. Exiting position at 14:59 IST...`);
         await executionManager.executeExit(underlying, currentMonth, isPaper);
         return;
       }
@@ -154,7 +154,7 @@ export class CronScheduler {
 
     if (isAfterOrOnEntry && isBeforeOrOnExpiry) {
       if (currentPosition && currentPosition.status === 'open') {
-        if (isExpiryDay && minutesSinceMidnight >= 915) {
+        if (isExpiryDay && minutesSinceMidnight >= 899) {
           return;
         }
         await executionManager.monitorPnl(underlying, currentMonth, isPaper);
