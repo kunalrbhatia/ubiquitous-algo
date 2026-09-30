@@ -247,6 +247,20 @@ describe('StrategyManager', () => {
     ).toBe(false);
   });
 
+  test('isLiquid applies the default depth and spread thresholds', () => {
+    const inst = { lotsize: 30 } as any;
+
+    // 1 lot of depth (30) satisfies the default SHORT_LEG_MIN_LOTS_DEPTH
+    expect(
+      (manager as any).isLiquid({ ltp: 100, bid: 99.5, ask: 100.5, bidQty: 30, askQty: 30, inst }),
+    ).toBe(true);
+
+    // one short of a full lot on the bid is rejected
+    expect(
+      (manager as any).isLiquid({ ltp: 100, bid: 99.5, ask: 100.5, bidQty: 29, askQty: 30, inst }),
+    ).toBe(false);
+  });
+
   test('buildBasket returns null when no qualifying T0 CE strikes fall in 0.10-0.15 range', async () => {
     const todayStr = '16JUL2026';
     (instrumentManager.getExpiries as jest.Mock).mockReturnValue([todayStr, '25AUG2026']);

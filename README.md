@@ -99,6 +99,7 @@ Tuning variables (defaults shown) — all read from `.env`, none hardcoded:
 | `MAX_SLIPPAGE_PCT` | `0.03` | Slippage cap vs LTP on entry limit orders. Bounds the intermediate reprice rungs but never blocks the final rung from reaching the touch price, so wide-spread (far-OTM / next-month) legs can still fill. |
 | `SL_SLIPPAGE_PCT` | `0.015` | Slippage cap vs LTP on stop-loss exits |
 | `ORDER_POLL_TIMEOUT_MS` | `30000` | Wall-clock budget for confirming a single order fill before it is cancelled and the leg treated as failed |
+| `SHORT_LEG_MIN_LOTS_DEPTH` | `1` | Minimum book depth (in lots, both bid and ask) required for a T0 short leg. Raising it rejects far-OTM month-ahead strikes whose books are thin. |
 
 ### 3. Execution Commands
 - **Run in Development (Single Tick):**

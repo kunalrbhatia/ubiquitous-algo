@@ -24,6 +24,11 @@ export const envSchema = z.object({
   SL_SLIPPAGE_PCT: z.coerce.number().nonnegative().default(0.015),
   /** Wall-clock budget (ms) for confirming a single order fill */
   ORDER_POLL_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+  /**
+   * Minimum lots of book depth required on both bid and ask for a T0 short leg.
+   * Demanding 2 lots rejects far-OTM month-ahead strikes whose books are thin.
+   */
+  SHORT_LEG_MIN_LOTS_DEPTH: z.coerce.number().int().nonnegative().default(1),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -48,6 +53,7 @@ try {
       MAX_SLIPPAGE_PCT: 0.03,
       SL_SLIPPAGE_PCT: 0.015,
       ORDER_POLL_TIMEOUT_MS: 30000,
+      SHORT_LEG_MIN_LOTS_DEPTH: 1,
     };
   } else {
     console.error('❌ Invalid environment configuration:', error);
