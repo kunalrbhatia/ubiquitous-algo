@@ -22,11 +22,27 @@ describe('ExecutionManager', () => {
 
     // Set polling settings to execute instantly in tests
     (
-      executionManager as unknown as { pollIntervalMs: number; maxPollAttempts: number }
+      executionManager as unknown as {
+        pollIntervalMs: number;
+        maxPollAttempts: number;
+        maxPollDurationMs: number;
+      }
     ).pollIntervalMs = 1;
     (
-      executionManager as unknown as { pollIntervalMs: number; maxPollAttempts: number }
+      executionManager as unknown as {
+        pollIntervalMs: number;
+        maxPollAttempts: number;
+        maxPollDurationMs: number;
+      }
     ).maxPollAttempts = 2;
+    // Shrink the wall-clock poll budget too, so timeout paths resolve instantly.
+    (
+      executionManager as unknown as {
+        pollIntervalMs: number;
+        maxPollAttempts: number;
+        maxPollDurationMs: number;
+      }
+    ).maxPollDurationMs = 50;
 
     mockBasket = [
       {

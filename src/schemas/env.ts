@@ -18,6 +18,12 @@ export const envSchema = z.object({
   LOTS: z.coerce.number().int().positive().default(1),
   /** Market-close exit time on expiry day (HH:MM, 24h IST) — e.g. "14:59" */
   EXIT_TIME: z.string().default('14:59'),
+  /** Max slippage vs LTP allowed on entry limit orders (fraction, 0.03 = 3%) */
+  MAX_SLIPPAGE_PCT: z.coerce.number().nonnegative().default(0.03),
+  /** Max slippage vs LTP allowed on stop-loss exits (fraction) */
+  SL_SLIPPAGE_PCT: z.coerce.number().nonnegative().default(0.015),
+  /** Wall-clock budget (ms) for confirming a single order fill */
+  ORDER_POLL_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -39,6 +45,9 @@ try {
       CLIENT_TOTP_PIN: '123456',
       LOTS: 1,
       EXIT_TIME: '14:59',
+      MAX_SLIPPAGE_PCT: 0.03,
+      SL_SLIPPAGE_PCT: 0.015,
+      ORDER_POLL_TIMEOUT_MS: 30000,
     };
   } else {
     console.error('❌ Invalid environment configuration:', error);
