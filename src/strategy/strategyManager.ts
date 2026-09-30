@@ -98,7 +98,7 @@ export class StrategyManager implements IStrategyManager {
 
   private isLiquid(
     candidate: LiquidCandidate,
-    minLotsDepth = 2,
+    minLotsDepth = env.SHORT_LEG_MIN_LOTS_DEPTH,
     maxSpreadPct = 0.08,
     maxMidpointDiffPct = 0.08,
   ): boolean {
@@ -288,11 +288,16 @@ export class StrategyManager implements IStrategyManager {
     for (const c of t0CeCandidates) {
       c.delta = Math.abs(calculateDelta(underlyingLtp, c.strike, t0, atmCeIv, 0.07, 'CE'));
     }
-    const t0CeFiltered = t0CeCandidates.filter(
-      (c) => c.delta! >= 0.1 && c.delta! <= 0.15 && (skipLiquidityCheck || this.isLiquid(c)),
+    const t0CeInBand = t0CeCandidates.filter((c) => c.delta! >= 0.1 && c.delta! <= 0.15);
+    const t0CeFiltered = t0CeInBand.filter(
+      (c) => skipLiquidityCheck || this.isLiquid(c, env.SHORT_LEG_MIN_LOTS_DEPTH),
     );
     if (t0CeFiltered.length === 0) {
-      logger.error(`No qualifying T0 CE strikes in delta range 0.10-0.15 for ${underlying}.`);
+      logger.error(
+        `No qualifying T0 CE strikes for ${underlying}: ${t0CeCandidates.length} candidates, ` +
+          `${t0CeInBand.length} in delta 0.10-0.15, 0 liquid ` +
+          `(need ${env.SHORT_LEG_MIN_LOTS_DEPTH} lot(s) depth on bid+ask, spread <= 8%).`,
+      );
       return null;
     }
     const shortCe = t0CeFiltered.reduce((best, cur) => {
@@ -316,11 +321,16 @@ export class StrategyManager implements IStrategyManager {
       const iv = Math.min(rawIv, 1.5 * vixIv);
       c.delta = Math.abs(calculateDelta(underlyingLtp, c.strike, t0, iv, 0.07, 'PE'));
     }
-    const t0PeFiltered = t0PeCandidates.filter(
-      (c) => c.delta! >= 0.1 && c.delta! <= 0.15 && (skipLiquidityCheck || this.isLiquid(c)),
+    const t0PeInBand = t0PeCandidates.filter((c) => c.delta! >= 0.1 && c.delta! <= 0.15);
+    const t0PeFiltered = t0PeInBand.filter(
+      (c) => skipLiquidityCheck || this.isLiquid(c, env.SHORT_LEG_MIN_LOTS_DEPTH),
     );
     if (t0PeFiltered.length === 0) {
-      logger.error(`No qualifying T0 PE strikes in delta range 0.10-0.15 for ${underlying}.`);
+      logger.error(
+        `No qualifying T0 PE strikes for ${underlying}: ${t0PeCandidates.length} candidates, ` +
+          `${t0PeInBand.length} in delta 0.10-0.15, 0 liquid ` +
+          `(need ${env.SHORT_LEG_MIN_LOTS_DEPTH} lot(s) depth on bid+ask, spread <= 8%).`,
+      );
       return null;
     }
     const shortPe = t0PeFiltered.reduce((best, cur) => {
