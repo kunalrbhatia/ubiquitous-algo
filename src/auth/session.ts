@@ -156,6 +156,15 @@ export class SessionManager implements ISessionManager {
   }
 
   async login(): Promise<void> {
+    // Reuse the token already minted in this process. A single tick calls login()
+    // from more than one call site, and every redundant call burns a TOTP plus a
+    // loginByPassword round-trip — exactly what invites Angel One rate limiting
+    // midway through an entry.
+    if (this.jwtToken) {
+      logger.info('SmartAPI session already established in this process; skipping login.');
+      return;
+    }
+
     logger.info('Attempting SmartAPI login...');
     const url = 'https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword';
 

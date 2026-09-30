@@ -6,6 +6,7 @@ import brokerClient, { PlaceOrderParams, OptionQuote } from './brokerClient';
 import positionsStore from '../positions/positionsStore';
 import { StrategyLeg } from '../strategy/strategyManager';
 import { OrderRecord, MonthlyPosition } from '../schemas/smartApi';
+import env from '../schemas/env';
 
 const OPTION_TICK_SIZE = 0.05;
 
@@ -70,7 +71,9 @@ export interface IExecutionManager {
 
 export class ExecutionManager implements IExecutionManager {
   private pollIntervalMs = 1000;
-  private maxPollAttempts = 15; // 15 seconds max
+  private maxPollAttempts = 15;
+  /** Wall-clock budget for confirming one order (env-driven). */
+  private maxPollDurationMs = env.ORDER_POLL_TIMEOUT_MS;
 
   async executeEntry(underlying: string, basket: StrategyLeg[]): Promise<boolean> {
     const isPaper = flagWatcher.isPaperMode();
@@ -135,7 +138,7 @@ export class ExecutionManager implements IExecutionManager {
   private async placeLimitOrderWithReprice(
     leg: { symboltoken: string; tradingsymbol: string; exchange: string; quantity: number },
     transactiontype: 'BUY' | 'SELL',
-    maxSlippagePct = 0.03,
+    maxSlippagePct = env.MAX_SLIPPAGE_PCT,
     repriceIntervalMs = 3000,
     maxAttempts = 4,
     isExit = false,
@@ -150,6 +153,10 @@ export class ExecutionManager implements IExecutionManager {
           return { orderid: null, cancelFailed: false };
         }
 
+        // Hoisted: the slippage guard below needs the touch prices.
+        const passive = transactiontype === 'BUY' ? bid : ask;
+        const aggressive = transactiontype === 'BUY' ? ask : bid;
+
         let targetPrice: number;
         if (isExit) {
           const optionQuote: OptionQuote = {
@@ -162,22 +169,24 @@ export class ExecutionManager implements IExecutionManager {
           };
           targetPrice = getExitLimitPrice(optionQuote, transactiontype);
         } else {
-          const passive = transactiontype === 'BUY' ? bid : ask;
-          const aggressive = transactiontype === 'BUY' ? ask : bid;
-
           const fraction = maxAttempts > 1 ? attempt / (maxAttempts - 1) : 1;
           targetPrice = passive + fraction * (aggressive - passive);
         }
 
+        // The slippage guard must never clamp the final rung short of the touch
+        // price. On a wide-spread (far-OTM / next-month) contract that makes the
+        // limit unfillable by construction: the ladder tops out below the ask, so
+        // every attempt expires unfilled and the leg is forced into a market sweep.
+        // Bound the intermediate rungs, but always allow at least the aggressive side.
         if (transactiontype === 'BUY') {
-          const cap = ltp * (1 + maxSlippagePct);
+          const cap = Math.max(ltp * (1 + maxSlippagePct), aggressive);
           if (targetPrice > cap) {
             targetPrice = cap;
           }
         } else {
-          const cap = ltp * (1 - maxSlippagePct);
-          if (targetPrice < cap) {
-            targetPrice = cap;
+          const floor = Math.min(ltp * (1 - maxSlippagePct), aggressive);
+          if (targetPrice < floor) {
+            targetPrice = floor;
           }
         }
 
@@ -374,6 +383,16 @@ export class ExecutionManager implements IExecutionManager {
     try {
       const isComplete = await this.pollOrderStatus(orderid);
       if (!isComplete) {
+        // The sweep may still be resting in the book. Cancel it before bailing
+        // out: otherwise it can fill AFTER the caller has rolled the basket back,
+        // leaving an unhedged orphan leg that nothing tracks.
+        try {
+          await brokerClient.cancelOrder(orderid, 'NORMAL');
+          logger.warn(`Cancelled unconfirmed market order ${orderid} for ${leg.tradingsymbol}.`);
+        } catch (cancelErr: unknown) {
+          const cmsg = cancelErr instanceof Error ? cancelErr.message : String(cancelErr);
+          logger.error(`Failed to cancel unconfirmed order ${orderid}: ${cmsg}`);
+        }
         return null;
       }
 
@@ -399,9 +418,26 @@ export class ExecutionManager implements IExecutionManager {
   }
 
   private async pollOrderStatus(orderid: string): Promise<boolean> {
-    for (let attempt = 0; attempt < this.maxPollAttempts; attempt++) {
-      await new Promise((r) => setTimeout(r, this.pollIntervalMs));
-      const orderBook = await brokerClient.getOrderBook();
+    // Wall-clock budget rather than a fixed attempt count: each poll is a full
+    // getOrderBook round-trip that may itself retry on a rate-limit 403, so a
+    // nominal "15 attempts x 1s" can silently stretch well past its intent.
+    // Back off between polls to keep API pressure down.
+    const deadline = Date.now() + this.maxPollDurationMs;
+    let delay = this.pollIntervalMs;
+
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, delay));
+
+      let orderBook;
+      try {
+        orderBook = await brokerClient.getOrderBook();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.warn(`Failed to poll order ${orderid}: ${msg}`);
+        delay = Math.min(delay * 2, 5000);
+        continue;
+      }
+
       const order = orderBook.find((o) => o.orderid === orderid);
 
       if (order) {
@@ -414,8 +450,10 @@ export class ExecutionManager implements IExecutionManager {
           return false;
         }
       }
+
+      delay = Math.min(Math.round(delay * 1.5), 5000);
     }
-    logger.error(`Order ${orderid} polling timed out.`);
+    logger.error(`Order ${orderid} polling timed out after ${this.maxPollDurationMs}ms.`);
     return false;
   }
 
@@ -547,7 +585,7 @@ export class ExecutionManager implements IExecutionManager {
       };
     }
 
-    const maxSlippagePct = isStoploss ? 0.015 : 0.03;
+    const maxSlippagePct = isStoploss ? env.SL_SLIPPAGE_PCT : env.MAX_SLIPPAGE_PCT;
     const maxAttempts = isStoploss ? 2 : 4;
 
     const repriceRes = await this.placeLimitOrderWithReprice(

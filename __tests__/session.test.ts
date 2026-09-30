@@ -41,6 +41,28 @@ describe('SessionManager', () => {
     expect(fs.writeFileSync).toHaveBeenCalled();
   });
 
+  test('login reuses the in-process session and skips a redundant API call', async () => {
+    const mockResponse = {
+      status: true,
+      message: 'SUCCESS',
+      errorcode: '0000',
+      data: {
+        jwtToken: 'mock_jwt',
+        refreshToken: 'mock_refresh',
+        feedToken: 'mock_feed',
+      },
+    };
+    (httpClient.request as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+    await sessionManager.login();
+    expect(httpClient.request).toHaveBeenCalledTimes(1);
+
+    // A second call site in the same process must not burn another TOTP / login.
+    await sessionManager.login();
+    expect(httpClient.request).toHaveBeenCalledTimes(1);
+    expect(sessionManager.getJwtToken()).toBe('mock_jwt');
+  });
+
   test('login fails when status is false', async () => {
     const mockResponse = {
       status: false,

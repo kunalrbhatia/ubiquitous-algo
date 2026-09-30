@@ -90,6 +90,16 @@ cp .env.example .env
 ```
 Fill in your Angel One SmartAPI credentials.
 
+Tuning variables (defaults shown) — all read from `.env`, none hardcoded:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `LOTS` | `1` | Lots per leg |
+| `EXIT_TIME` | `14:59` | Expiry-day exit time (HH:MM, 24h IST) |
+| `MAX_SLIPPAGE_PCT` | `0.03` | Slippage cap vs LTP on entry limit orders. Bounds the intermediate reprice rungs but never blocks the final rung from reaching the touch price, so wide-spread (far-OTM / next-month) legs can still fill. |
+| `SL_SLIPPAGE_PCT` | `0.015` | Slippage cap vs LTP on stop-loss exits |
+| `ORDER_POLL_TIMEOUT_MS` | `30000` | Wall-clock budget for confirming a single order fill before it is cancelled and the leg treated as failed |
+
 ### 3. Execution Commands
 - **Run in Development (Single Tick):**
   ```bash
