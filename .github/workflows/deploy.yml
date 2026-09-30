@@ -13,19 +13,32 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - name: Deploy to Oracle Cloud via SSH
+      - name: Deploy to trading VM via SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
           script: |
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            cd ~/ratio-double-calendar-daemon
-            git reset --hard
-            git clean -fd
+            set -euo pipefail
+
+            REPO="$HOME/ubiquitous-algo"
+            if [ ! -d "$REPO/.git" ]; then
+              echo "FATAL: $REPO is not a git checkout - refusing to deploy."
+              exit 1
+            fi
+
+            cd "$REPO"
             git fetch origin master
             git reset --hard origin/master
             pnpm install --frozen-lockfile
             pnpm build
+
+            echo "Deployed $(git rev-parse --short HEAD) at $(date -Is)"
+
+# No restart step is required: this strategy is driven by a system crontab entry that
+# spawns a fresh `pnpm start` (node dist/index.js) on every tick, so a rebuild is
+# picked up automatically on the next tick.
+#
+# `data/`, `.env`, `logs/` and `dist/` are gitignored, so `git reset --hard` never
+# touches position state or credentials. `git clean` is deliberately NOT used.
